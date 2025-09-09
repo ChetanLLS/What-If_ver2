@@ -53,7 +53,7 @@ requests==2.32.3
 rpds-py==0.22.3
 rsa==4.9.1
 scikit-learn==1.6.1
-scipy==1.13.1
+# scipy==1.13.1
 six==1.17.0
 smmap==5.0.2
 streamlit==1.42.0
