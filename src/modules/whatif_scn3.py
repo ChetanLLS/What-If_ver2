@@ -47,10 +47,10 @@ def scn3():
         level = st.selectbox("Select Level", df['Level'].unique(), index=default_level_index)
 
         # Data filtering based on selected filters
-        filtered_df = df[(df['Language'] == language_filter) & 
-                        (df['Req Media'] == req_media_filter) & 
-                        (df['USD'] == usd_filter) & 
-                        (df['Level'] == level_filter)]
+        filtered_df = df[(df['Language'] == language) & 
+                        (df['Req Media'] == req_media) & 
+                        (df['USD'] == usd) & 
+                        (df['Level'] == level)]
 
         # Data preparation and model training
         try:
