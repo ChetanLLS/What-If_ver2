@@ -134,6 +134,7 @@ def scn3():
                         week_year = search_date.strftime("%Y-%U")
                         weekly_df = df[df['Date'].dt.strftime("%Y-%U") == week_year]
                         average_demand = weekly_df['Demand'].mean()
+                        st.write(average_demand)
 
                         start_date = search_date - timedelta(days=search_date.weekday())
                         end_date = start_date + timedelta(days=6)
@@ -141,10 +142,12 @@ def scn3():
                         predictions = {}
                         actual_fte_values = []
                         predicted_fte_values = []
+                        daily_demand_value = []
 
                         for date in pd.date_range(start=start_date, end=end_date):
                             date = date.strftime("%Y-%m-%d")
                             daily_demand = df[df['Date'].dt.strftime("%Y-%m-%d") == date]['Demand'].mean()
+
                             actual_fte = df[df['Date'] == date]['Requirement'].mean()
 
                             if np.isnan(daily_demand):
@@ -154,10 +157,12 @@ def scn3():
                             new_daily_demand_std = scaler.transform([[new_daily_demand]])
                             predicted_fte = model.predict(new_daily_demand_std)[0]
 
+                            daily_demand_value.append(daily_demand)
                             predictions[date] = predicted_fte
                             actual_fte_values.append(actual_fte)
                             predicted_fte_values.append(predicted_fte)
 
+                        average_demand = np.mean(daily_demand_value)
                         average_actual_fte = np.mean(actual_fte_values)
                         average_predicted_fte = np.mean(predicted_fte_values)
                         fte_percentage_change = ((average_predicted_fte - average_actual_fte) / average_actual_fte) * 100
@@ -173,6 +178,7 @@ def scn3():
                         predictions = {}
                         actual_fte_values = []
                         predicted_fte_values = []
+                        daily_demand_value = []
 
                         for date in pd.date_range(start=start_date, end=end_date):
                             date = date.strftime("%Y-%m-%d")
@@ -186,10 +192,12 @@ def scn3():
                             new_daily_demand_std = scaler.transform([[new_daily_demand]])
                             predicted_fte = model.predict(new_daily_demand_std)[0]
 
+                            daily_demand_value.append(daily_demand)
                             predictions[date] = predicted_fte
                             actual_fte_values.append(actual_fte)
                             predicted_fte_values.append(predicted_fte)
 
+                        average_demand = np.mean(daily_demand_value)
                         average_actual_fte = np.mean(actual_fte_values)
                         average_predicted_fte = np.mean(predicted_fte_values)
                         fte_percentage_change = ((average_predicted_fte - average_actual_fte) / average_actual_fte) * 100
@@ -205,6 +213,7 @@ def scn3():
                         predictions = {}
                         actual_fte_values = []
                         predicted_fte_values = []
+                        daily_demand_value = []
 
                         for date in pd.date_range(start=start_date, end=end_date):
                             date = date.strftime("%Y-%m-%d")
@@ -218,10 +227,12 @@ def scn3():
                             new_daily_demand_std = scaler.transform([[new_daily_demand]])
                             predicted_fte = model.predict(new_daily_demand_std)[0]
 
+                            daily_demand_value.append(daily_demand)
                             predictions[date] = predicted_fte
                             actual_fte_values.append(actual_fte)
                             predicted_fte_values.append(predicted_fte)
 
+                        average_demand = np.mean(daily_demand_value)
                         average_actual_fte = np.mean(actual_fte_values)
                         average_predicted_fte = np.mean(predicted_fte_values)
                         fte_percentage_change = ((average_predicted_fte - average_actual_fte) / average_actual_fte) * 100
@@ -246,27 +257,39 @@ def scn3():
                     predictions, scenario_type, average_demand, average_actual_fte, average_predicted_fte, fte_percentage_change = result
 
                     new_demand = average_demand * (1 + demand_increase_percent / 100)
+                    
+                    if scenario_type == "weekly":
+                        actual_demand = average_demand * 7
+                        new_demand_scn_type = new_demand *7
+                    elif scenario_type == "monthly":
+                        actual_demand = average_demand * 30
+                        new_demand_scn_type = new_demand *30
+                    elif scenario_type == "yearly":
+                        actual_demand = average_demand * 365
+                        new_demand_scn_type = new_demand * 365
+                    else:
+                        actual_demand = average_demand  
+                        new_demand_scn_type = new_demand # default case if scenario_type doesn't match
+
 
                     st.write(f"Scenario Type: {scenario_type}")
-    #                 st.write(f"Average Demand: {format_number_to_million(average_demand)}M")
-                    st.write(f"Average Demand: {average_demand}")
+                    st.write(f"Total Demand - {scenario_type} : {int(actual_demand)}")
                     st.write(f"Demand Increase %: {demand_increase_percent:.2f}")
-                    st.write(f"Average Demand: {new_demand}")
-    #                 st.write(f"New Demand: {format_number_to_million(new_demand)}M")
+                    st.write(f"New Total Demand - {scenario_type} : {int(new_demand_scn_type)}")
                     st.write(f"Actual FTEs Required (Avg): {average_actual_fte:.2f}")
                     st.write(f"Predicted FTEs Required (Avg): {average_predicted_fte:.2f}")
                     st.write(f"FTE % Change: {fte_percentage_change:.2f}")
 
-                    # Save results to Excel
-                    results_df = pd.DataFrame({
-                        'Scenario Type': [scenario_type],
-                        'Demand Increase %': [demand_increase_percent],
-                        'Average Demand': [average_demand],
-                        'New Demand': [new_demand],
-                        'Actual FTEs Required (Avg)': [average_actual_fte],
-                        'Predicted FTEs Required (Avg)': [average_predicted_fte],
-                        'FTE % Change': [fte_percentage_change]
-                    })
+                    # # Save results to Excel
+                    # results_df = pd.DataFrame({
+                    #     'Scenario Type': [scenario_type],
+                    #     'Demand Increase %': [demand_increase_percent],
+                    #     'Total Demand': [actual_demand],
+                    #     'New Total Demand': [new_demand_scn_type],
+                    #     'Actual FTEs Required (Avg)': [average_actual_fte],
+                    #     'Predicted FTEs Required (Avg)': [average_predicted_fte],
+                    #     'FTE % Change': [fte_percentage_change]
+                    # })
                     # results_file = 'FTE_predictions.xlsx'
                     # results_df.to_excel(results_file, index=False, engine='xlsxwriter')
 
@@ -276,5 +299,8 @@ def scn3():
         except Exception as e:
             st.error(f"Error processing data: {e}")
 
+
+if __name__ == "__main__":
+    scn3()
 
                

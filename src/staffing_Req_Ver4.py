@@ -182,7 +182,7 @@ def run_fte_analysis_4():
             unsafe_allow_html=True
         )
         st.metric("New Average Q2 Time", f"{new_avg_q2_time:.2f}")
-        st.metric("New Average Occupancy Rate", f"{new_avg_occ_rate:.1f}%")
+        st.metric("New Average Occupancy Rate", f"{new_avg_occ_rate*100:.1f}%")
         st.metric("New Average Abandon Rate", f"{new_avg_abn_rate:.2f}%")
         
         
@@ -389,3 +389,7 @@ def run_fte_analysis_4():
 
     else:
         st.warning("Please upload an Excel file to proceed.")
+
+
+if __name__ == "__main__":
+    run_fte_analysis_4()

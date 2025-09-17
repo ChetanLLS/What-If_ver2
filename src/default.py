@@ -46,12 +46,12 @@ from modules.whatif_scn6_7 import scn6_7
 
 # Dictionary mapping scenarios to functions
 SCENARIOS = {
-    "Scenario 1": scn1,
-    "Scenario 2": scn2,
-    "Scenario 3": scn3,
-    "Scenario 4": scn_4,
-    "Scenario 5": scn_5,
-    "Scenario 6": scn6_7,
+    "Scenario 1 - Average SL% while aiming to Q2 target and ABN % goal": scn1,
+    "Scenario 2 - Requirement Change based on Q2 Time, ABN % and Occ adjustments": scn2,
+    "Scenario 3 - Needed FTE based on Demand Changes": scn3,
+    "Scenario 4 - Work in progress": scn_4,
+    "Scenario 5 - Staffing Requirements based on KPI adjustments": scn_5,
+    "Scenario 6 - Calls per FTE Change": scn6_7,
 }
 
 # Scenario descriptions

@@ -28,17 +28,17 @@ def train_regression_model(df):
     return model
 
 # Function for Scenario 1: How does calls per FTE change in different scenarios?
-def calls_per_fte_scenario(df, percentage_changes):
-    results = []
-    for change in percentage_changes:
-        adjusted_calls = df["Calls"].median()
-        adjusted_fte = df["Staffing"].median() * (1 + change / 100)
-        calls_per_fte = adjusted_calls / adjusted_fte if adjusted_fte != 0 else 0
-        results.append({
-            "FTE Change %": change,
-            "Predicted Calls per FTE": calls_per_fte
-        })
-    return pd.DataFrame(results)
+# def calls_per_fte_scenario(df, percentage_changes):
+#     results = []
+#     for change in percentage_changes:
+#         adjusted_calls = df["Calls"].median()
+#         adjusted_fte = df["Staffing"].median() * (1 + change / 100)
+#         calls_per_fte = adjusted_calls / adjusted_fte if adjusted_fte != 0 else 0
+#         results.append({
+#             "FTE Change %": change,
+#             "Predicted Calls per FTE": calls_per_fte
+#         })
+#     return pd.DataFrame(results)
 
 # Function for Scenario 2: How do KPIs change if we adjust calls per FTE?
 def kpi_impact_scenario(df, model, percentage_changes):
@@ -54,57 +54,34 @@ def kpi_impact_scenario(df, model, percentage_changes):
             "Occ Assumption": [df["Occ Assumption"].median()],
             "Staffing": [adjusted_fte],
             "Calls": [adjusted_calls],
-            "Occupancy Rate": [df["Occupancy Rate"].median()],
+            "Occupancy Rate": [df["Occupancy Rate"].median()]
         })
 
         fte_pred = model.predict(test_scenario)[0]
 
         results.append({
-            "Calls per FTE Change %": change,
+            "Change %": change,
+            "Calls Per FTE (Staffing)": calls_per_fte,
             "Predicted FTE Requirement": fte_pred,
             "Adjusted Q2 Time": df["Q2"].median() * (1 + change / 100),
             "Adjusted Abandonment Rate": df["ABN %"].median() * (1 + change / 100),
-            "Predicted Calls per FTE": calls_per_fte
+            "Adjusted Occupancy Rate": df["Occupancy Rate"].median()* (1 + change / 100)
         })
     return pd.DataFrame(results)
 
 def analyze_scenarios(df, model, q2, abn, occ):
     test_data = pd.DataFrame({
-        "Q2": [q2/100],
+        "Q2": [q2],
         "ABN %": [abn/100],
         "Occ Assumption": [occ/100],
         "Staffing": [df["Staffing"].median()],
         "Calls": [df["Calls"].median()],
-        "Occupancy Rate": [df["Occupancy Rate"].median()],
+        "Occupancy Rate": [df["Occupancy Rate"].median()]
     })
     fte_prediction = model.predict(test_data)[0]
-    return int(fte_prediction)
+    return fte_prediction
 
-def fte_impact_of_demand_increase(df, model, q2, abn, occ):
-    demand_changes = [5, 10, 15, 20, 25]
-    predictions = []
-    for change in demand_changes:
-        call_scenario = df["Calls"].median() * (1 + change / 100)
-        fte_pred = model.predict(pd.DataFrame({
-            "Q2": [q2/100], "ABN %": [abn/100], "Occ Assumption": [occ/100],
-            "Staffing": [df["Staffing"].median()], "Calls": [call_scenario], "Occupancy Rate": [df["Occupancy Rate"].median()]
-        }))[0]
-        predictions.append((change, int(fte_pred)))
-    return predictions
-
-def impact_of_occ_assumption_change(df, model, q2, abn):
-    occ_changes = [-10, -5, 0, 5, 10]
-    predictions = []
-    for change in occ_changes:
-        occ_scenario = df["Occ Assumption"].median() * (1 + change / 100)
-        fte_pred = model.predict(pd.DataFrame({
-            "Q2": [q2/100], "ABN %": [abn/100], "Occ Assumption": [occ_scenario/100],
-            "Staffing": [df["Staffing"].median()], "Calls": [df["Calls"].median()], "Occupancy Rate": [df["Occupancy Rate"].median()]
-        }))[0]
-        predictions.append((change, int(fte_pred)))
-    return predictions
-
-st.title("What-If Analysis for FTE Requirements")
+st.title("Change in calls per FTE (Staffing) on other KPI")
 st.sidebar.header("User Inputs")
 
 def scn6_7():
@@ -134,22 +111,12 @@ def scn6_7():
         occ = st.sidebar.slider("Set Occupancy Rate (%)", min_value=0, max_value=100, value=80, step=1)
     
         fte_prediction = analyze_scenarios(df, model, q2, abn, occ)
-        st.write(f"Predicted FTE based on user inputs: {fte_prediction}")
+        st.write(f"Predicted FTE based on user inputs: {fte_prediction:.2f}")
     
-        # st.header("Scenario 1: FTE Impact of Demand Increase")
-        # demand_impact = fte_impact_of_demand_increase(df, model, q2, abn, occ)
-        # for change, fte_pred in demand_impact:
-        #     st.write(f"Demand Increase {change}%: Predicted FTE = {fte_pred}")
-
-        # st.header("Scenario 1: Impact of OCC Assumption Change")
-        # occ_impact = impact_of_occ_assumption_change(df, model, q2, abn)
-        # for change, fte_pred in occ_impact:
-        #     st.write(f"OCC Assumption Change {change}%: Predicted FTE = {fte_pred}")
-    
-        st.header("Scenario 2: KPI Impact due to Calls per FTE Changes")
-        percentage_changes = np.array([-10, -5, 0, 5, 10])  # Variations in FTE assumptions
+        st.header("KPI Impact due to Calls per FTE (Staffing) Changes")
+        percentage_changes = np.array([-25, -20, -15,-10,-5, -2, -1, 0, 1, 2, 5, 10, 15, 20, 25])  # Variations in FTE assumptions
         kpi_impact_df = kpi_impact_scenario(df, model, percentage_changes)
-        st.dataframe(kpi_impact_df) 
+        st.dataframe(kpi_impact_df.round(2)) 
 
-# if __name__ == '__main__':
-#     scn6_7()
+if __name__ == '__main__':
+    scn6_7()

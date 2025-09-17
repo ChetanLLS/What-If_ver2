@@ -120,11 +120,10 @@ def scn1():
             sl_impact = sl_impact_of_q2_increase(df_filtered, model, q2_val, abn_val)
             
             for change, sl_pred in sl_impact:
-                st.write(f"Q2 Change {change}: Predicted SL = **{sl_pred:.4f}**")
+                st.write(f"Q2 Value {q2_val + change}: Predicted SL = **{sl_pred:.4f}**")
         
         else:
             st.warning("No data available for the selected filters. Try different values.")
 
 if __name__ == '__main__':
     scn1()
-    debug=True
