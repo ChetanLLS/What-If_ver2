@@ -37,8 +37,8 @@ def scn3():
         st.write("Excel file uploaded successfully!")
 
         # Dropdown filters based on data columns
-        usd_options = data['USD'].unique()
-        level_options = data['Level'].unique()        
+        usd_options = df['USD'].unique()
+        level_options = df['Level'].unique()        
         default_usd_global_index = list(usd_options).index("Combined") if "Combined" in usd_options else 0
         default_level_index = list(level_options).index("Combined") if "Combined" in usd_options else 0
         language = st.selectbox("Select Language", df['Language'].unique())
