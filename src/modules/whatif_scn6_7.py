@@ -115,7 +115,7 @@ def scn6_7():
     
         st.header("KPI Impact due to Calls per FTE (Staffing) Changes")
         percentage_changes = np.array([-25, -20, -15,-10,-5, -2, -1, 0, 1, 2, 5, 10, 15, 20, 25])  # Variations in FTE assumptions
-        kpi_impact_df = kpi_impact_scenario(df, model, percentage_changes)
+        kpi_impact_df = kpi_impact_scenario(df, model, percentage_changes, q2, abn, occ)
         st.dataframe(kpi_impact_df.round(2)) 
 
 if __name__ == '__main__':
