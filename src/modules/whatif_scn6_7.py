@@ -50,11 +50,11 @@ def kpi_impact_scenario(df, model, percentage_changes, q2, abn, occ):
 
         test_scenario = pd.DataFrame({
             "Q2": [q2 * (1 + change / 100)],
-            "ABN %": [abn * (1 + change / 100)],
+            "ABN %": [abn/100 * (1 + change / 100)],
             "Occ Assumption": [df["Occ Assumption"].median()],
             "Staffing": [adjusted_fte],
             "Calls": [adjusted_calls],
-            "Occupancy Rate": [occ * (1 + change / 100)]
+            "Occupancy Rate": [occ/100 * (1 + change / 100)]
         })
 
         fte_pred = model.predict(test_scenario)[0]
