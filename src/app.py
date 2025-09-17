@@ -12,7 +12,7 @@ from staffing_Req_Ver4 import run_fte_analysis_4
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["What-if analysis","Data Extractor", "Staffing Req Analysis","Datamart-Daywise"])
+page = st.sidebar.radio("Go to", ["Datamart-Daywise", "Staffing Req Analysis", "What-if analysis","Data Extractor"])
 
 # Main content based on selection
 if page == "What-if analysis":
