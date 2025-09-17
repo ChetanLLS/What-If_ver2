@@ -83,10 +83,14 @@ def scn1():
         st.header("Filter Data")
         
         # Dropdown filters (Fixing 'USD Req' KeyError by replacing with 'USD')
+        usd_options = data['USD'].unique()
+        level_options = data['Level'].unique()        
+        default_usd_global_index = list(usd_options).index("Combined") if "Combined" in usd_options else 0
+        default_level_index = list(level_options).index("Combined") if "Combined" in usd_options else 0
         language = st.selectbox("Select Language", df['Language'].unique())
         req_media = st.selectbox("Select Req Media", df['Req Media'].unique())  
-        usd = st.selectbox("Select USD", df['USD'].unique())  # Fixed column name
-        level = st.selectbox("Select Level", df['Level'].unique())
+        usd = st.selectbox("Select USD", df['USD'].unique(), index=default_usd_global_index)  # Fixed column name
+        level = st.selectbox("Select Level", df['Level'].unique(), index=default_level_index)
 
         # Apply filters
         df_filtered = df[(df['Language'] == language) & 
