@@ -41,7 +41,7 @@ def train_regression_model(df):
 #     return pd.DataFrame(results)
 
 # Function for Scenario 2: How do KPIs change if we adjust calls per FTE?
-def kpi_impact_scenario(df, model, percentage_changes):
+def kpi_impact_scenario(df, model, percentage_changes, q2, abn, occ):
     results = []
     for change in percentage_changes:
         adjusted_calls = df["Calls"].median() * (1 + change / 100)
@@ -49,9 +49,9 @@ def kpi_impact_scenario(df, model, percentage_changes):
         calls_per_fte = adjusted_calls / adjusted_fte if adjusted_fte != 0 else 0
 
         test_scenario = pd.DataFrame({
-            "Q2": [df["Q2"].median() * (1 + change / 100)],
-            "ABN %": [df["ABN %"].median() * (1 + change / 100)],
-            "Occ Assumption": [df["Occ Assumption"].median()],
+            "Q2": [q2 * (1 + change / 100)],
+            "ABN %": [abn * (1 + change / 100)],
+            "Occ Assumption": [occ * (1 + change / 100)],
             "Staffing": [adjusted_fte],
             "Calls": [adjusted_calls],
             "Occupancy Rate": [df["Occupancy Rate"].median()]
