@@ -8,7 +8,7 @@ from streamlit_folium import st_folium
 from dateutil import parser
 
 
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 
 # Function to process occupancy assumptions
 def process_occupancy_assump(file, sheets):
@@ -44,6 +44,8 @@ def process_occupancy_assump(file, sheets):
                  
         if 'VRI' in type_data.upper():
             if "OCC Assumptions (L3):" in occ_df.columns and "Combined L3 Volume (ACTUAL)" in occ_df.columns:
+                cols = ["OCC Assumptions (L3):", "Combined L3 Volume (ACTUAL)","OCC Assumptions (L4):", "Combined L4 Volume (ACTUAL)", "OCC Assumptions (L5):", "Combined L5 Volume (ACTUAL)"]
+                occ_df[cols] = occ_df[cols].fillna(0)                
                 occ_df["OCC Assumptions (Combined):"] = (
                     occ_df["OCC Assumptions (L3):"] * occ_df["Combined L3 Volume (ACTUAL)"] +
                     occ_df["OCC Assumptions (L4):"] * occ_df["Combined L4 Volume (ACTUAL)"] +
@@ -53,15 +55,15 @@ def process_occupancy_assump(file, sheets):
                     occ_df["Combined L4 Volume (ACTUAL)"] +
                     occ_df["Combined L5 Volume (ACTUAL)"]
                 )
-            else:
-                
-                occ_df["OCC Assumptions (Combined):"] = (
-                    occ_df["OCC Assumptions (L4):"] * occ_df["Combined L4 Volume (ACTUAL)"] +
-                    occ_df["OCC Assumptions (L5):"] * occ_df["Combined L5 Volume (ACTUAL)"]
-                ) / (
-                    occ_df["Combined L4 Volume (ACTUAL)"] +
-                    occ_df["Combined L5 Volume (ACTUAL)"]
-                )
+            else:     
+                cols = ["OCC Assumptions (L4):", "Combined L4 Volume (ACTUAL)", "OCC Assumptions (L5):", "Combined L5 Volume (ACTUAL)"]
+                occ_df[cols] = occ_df[cols].fillna(0)
+
+                occ_df["OCC Assumptions (Combined):"] = np.where(
+                    (occ_df["Combined L4 Volume (ACTUAL)"] + occ_df["Combined L5 Volume (ACTUAL)"]) != 0,
+                    (occ_df["OCC Assumptions (L4):"] * occ_df["Combined L4 Volume (ACTUAL)"] + occ_df["OCC Assumptions (L5):"] * occ_df["Combined L5 Volume (ACTUAL)"]) /
+                    (occ_df["Combined L4 Volume (ACTUAL)"] + occ_df["Combined L5 Volume (ACTUAL)"]),
+                    np.nan)                
 
     
         # Drop columns containing "Volume (ACTUAL)"
@@ -238,7 +240,7 @@ def extract_after_weekly_planner(text):
 def fte_combined_level_calc(df):
     # Rename and convert date column
     df.rename(columns={"startDate per day": "Date"}, inplace=True)
-    df["Date"] = pd.to_datetime(df["Date"])
+    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
 
     # Group and pivot the data
     grouped = df.groupby(["Date", "Language", "USD", "Level"], as_index=False)[["Total OPI FTEs", "Total VRI FTEs"]].sum()
@@ -343,7 +345,7 @@ def run_daywise_tool_ver4():
                     .mean(axis=1, skipna=True)
                 )
                 
-                occ_assumptions_dataframe.drop(columns=['OCC Assumptions (L4):', 'OCC Assumptions (L5):']
+                occ_assumptions_dataframe.drop(columns=['OCC Assumptions (L4):', 'OCC Assumptions (L5):','OCC Assumptions (Combined):']
                                                , inplace=True)
 
             else:
@@ -372,9 +374,7 @@ def run_daywise_tool_ver4():
                     occ_assumptions_dataframe[['Global OCC Assumptions (Combined):', 'USD OCC Assumptions (Combined):']]
                     .mean(axis=1, skipna=True)
                 )
-                
-                
-                
+                   
             df_occ_assump = expand_weekly_occ_to_daily_long(occ_assumptions_dataframe)
             
             df_occ_assump[['Level', 'USD']] = df_occ_assump['Level'].apply(lambda x: pd.Series(extract_level_and_category(x)))
@@ -480,7 +480,6 @@ def run_daywise_tool_ver4():
                 how='left'
             )
                
-
             final_fte_occ_assump = df_calls_with_fte.merge(df_occ_assump, on =['startDate per day', 'Level', 'USD'], how='inner')
 
             df_occ.loc[df_occ['Req Media'] == "Video", 'Req Media'] = "VIDEO"
@@ -494,7 +493,7 @@ def run_daywise_tool_ver4():
             final_data = final_fte_occ_assump_occ_rate.copy()
             
 
-            final_data['OCC Assumption'].fillna(final_data['OCC Assumption'].mean(), inplace=True)
+            final_data['OCC Assumption'] = final_data['OCC Assumption'].fillna(final_data['OCC Assumption'].mean())
             final_data['OCC'].fillna(final_data['OCC'].mean(), inplace=True)           
             final_data["Requirement"] = final_data["Calls"] * final_data['Loaded AHT'] / ((2250 / 7) * final_data["OCC Assumption"])
             
@@ -530,5 +529,5 @@ def run_daywise_tool_ver4():
             )
             st.success("File processed successfully!")  
 
-# if __name__ == "__main__":
-#     run_daywise_tool()
+if __name__ == "__main__":
+    run_daywise_tool_ver4()

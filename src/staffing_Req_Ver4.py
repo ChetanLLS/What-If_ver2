@@ -46,6 +46,9 @@ def run_fte_analysis_4():
         
         usd_global = st.sidebar.selectbox('USD/Global', data['USD'].unique(), index=default_usd_global_index)
         level = st.sidebar.selectbox('Level', data['Level'].unique(), index=default_level_index)
+
+        # New Change
+        data["Staffing"] = data["Staffing"]*1.4
         
         
         demand_change = st.sidebar.number_input(
@@ -84,7 +87,9 @@ def run_fte_analysis_4():
             avg_abn_rate = filtered_data['ABN %'].mean()
 
         staffing_calc_for_ul_ll = filtered_data['Staffing'].mean()
-        avg_staffing_max_for_week = filtered_data['Staffing'].max()
+        # avg_staffing_max_for_week = filtered_data['Staffing'].max()
+        # New Change
+        avg_staffing_max_for_week = filtered_data['Staffing'].mean()
 
         # Staffing adjustment options- New Changes
         st.sidebar.subheader("Staffing Adjustment Method")

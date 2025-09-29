@@ -55,13 +55,13 @@ def scn3():
         # Calculate weekly averages      
 
         avg_q2 = weekly_df['Q2'].mean() if 'Q2' in weekly_df else 20
-        avg_abn = weekly_df['ABN %'].mean() if 'ABN %' in weekly_df else 2
+        # avg_abn = round(weekly_df['ABN %'].mean(),2) if 'ABN %' in weekly_df else 2.00
         avg_occ = weekly_df['Occupancy Rate'].mean()*100 if 'Occupancy Rate' in weekly_df else 70
         avg_occ_assmp = weekly_df['Occ Assumption'].mean()*100 if 'Occ Assumption' in weekly_df else 70
 
         # Sidebar sliders with dynamic defaults
         q2 = st.sidebar.slider("Set Q2 Time", min_value=0, max_value=100, value=int(avg_q2), step=1)
-        abn = st.sidebar.slider("Set Abandon Rate (%)", min_value=0, max_value=10, value=int(avg_abn), step=1)
+        # abn = st.sidebar.slider("Set Abandon Rate (%)", min_value=0.00, max_value=10.00, value=float(avg_abn), step=0.01)
         occ = st.sidebar.slider("Set Occupancy Rate (%)", min_value=0, max_value=100, value=int(avg_occ), step=1)
         occ_assmp = st.sidebar.slider("Set Occ Assumption (%)", min_value=0, max_value=100, value=int(avg_occ_assmp), step=1)
 
@@ -95,8 +95,8 @@ def scn3():
             train_df = filtered_df1[filtered_df1['Date'] <= split_date]
             test_df = filtered_df1[filtered_df1['Date'] > split_date]
 
-            X_train = train_df[['Demand', 'Q2', 'ABN %', 'Occ Assumption', 'Occupancy Rate']]
-            X_test = test_df[['Demand', 'Q2', 'ABN %', 'Occ Assumption', 'Occupancy Rate']]
+            X_train = train_df[['Demand', 'Q2', 'Occupancy Rate', 'Occ Assumption']]
+            X_test = test_df[['Demand', 'Q2', 'Occupancy Rate', 'Occ Assumption']]
             y_train = train_df['Requirement']
             y_test = test_df['Requirement']
 
@@ -138,7 +138,7 @@ def scn3():
             log_df.to_excel('model_accuracy_log.xlsx', index=False)
             st.write("Model accuracy logged successfully.")
 
-            def predict_fte(demand_increase_percent, scenario_type, date_str, df, q2, abn, occ, occ_assmp):
+            def predict_fte(demand_change_percent, scenario_type, date_str, df, q2, occ, occ_assmp):
                 try:
 
                     if scenario_type == 'weekly':
@@ -163,8 +163,9 @@ def scn3():
                             if np.isnan(daily_demand):
                                 daily_demand = 0
 
-                            new_daily_demand = daily_demand * (1 + demand_increase_percent / 100)
-                            input_features = np.array([[new_daily_demand, q2, abn, occ_assmp, occ]])
+                            new_daily_demand = daily_demand * (1 + demand_change_percent / 100)
+
+                            input_features = np.array([[new_daily_demand, q2, occ,occ_assmp]])
                             input_scaled = scaler.transform(input_features)
                             predicted_fte = model.predict(input_scaled)[0]
                             st.write(f"{date_str_day} | Original FTE Requirement: {actual_fte:.2f} |  New Predicted FTE Requirement: {predicted_fte:.2f}")
@@ -193,11 +194,11 @@ def scn3():
                     return None
 
             # UI Inputs
-            demand_change_percent = st.number_input("Enter demand change (%):", min_value=-100, max_value=100, value=0, step=1)
+            demand_change_percent = st.number_input("Enter demand change (%) [Increase +ve| Decrease -ve]:", min_value=-100, max_value=100, value=0, step=1)
             scenario_type = st.selectbox("Select the scenario type:", ["Weekly"]).strip().lower()
 
             if st.button('Predict FTE'):
-                result = predict_fte(demand_change_percent, scenario_type, date_str, filtered_df1, q2, abn, occ/100, occ_assmp/100)
+                result = predict_fte(demand_change_percent, scenario_type, date_str, filtered_df1, q2, occ/100, occ_assmp/100)
                 if result:
                     predictions, scenario_type, average_demand, average_actual_fte, average_predicted_fte, fte_percentage_change = result
 

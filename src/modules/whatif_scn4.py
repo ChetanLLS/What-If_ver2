@@ -1,111 +1,172 @@
-# Reload necessary libraries after reset
-#Scenario 4
-from modules.utils import st,pd,np
-from datetime import datetime, timedelta
-import calendar
-from modules.utils import train_test_split
-from modules.utils import StandardScaler
-from modules.utils import LinearRegression
-from modules.utils import r2_score, mean_squared_error,mean_absolute_error
-from modules.utils import joblib
-import openpyxl
+import streamlit as st
+import pandas as pd
+import numpy as np
+import xgboost as xgb
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
+from sklearn.metrics import classification_report
+from sklearn.preprocessing import LabelEncoder
+from collections import Counter
+import matplotlib.pyplot as plt
 
+st.title("ABN % Bucket Classification and Simulation")
 
-# # Load the uploaded file again
-# file_path = "Data/data_to_analyze.xlsx"
-# df = pd.read_excel(file_path, sheet_name="Sheet1")
+uploaded_file = st.file_uploader("Upload Weekly Excel File", type=["xlsx"])
+if uploaded_file:
+    df = pd.read_excel(uploaded_file, engine="openpyxl")
 
-# # Rename columns for consistency
-# df.rename(columns={'startDate': 'Date', 'Met': 'Service Level', 'Loaded AHT': 'AHT'}, inplace=True)
+    # Multi-select filter options
+    language = st.multiselect("Select Language(s)", df['Language'].dropna().unique())
+    req_media = st.multiselect("Select Req Media(s)", df['Req Media'].dropna().unique())
+    usd = st.multiselect("Select USD(s)", df['USD'].dropna().unique())
+    level = st.multiselect("Select Level(s)", df['Level'].dropna().unique())
 
-# # Convert necessary columns to numeric
-# numeric_columns = ["Q2", "ABN %", "AHT", "Service Level", "Missed", "Occ Assumption"]
-# for col in numeric_columns:
-#     df[col] = pd.to_numeric(df[col], errors="coerce")
+    # Filter data
+    df_filtered = df[
+        df['Language'].isin(language) &
+        df['Req Media'].isin(req_media) &
+        df['USD'].isin(usd) &
+        df['Level'].isin(level)
+    ].copy()
 
-# # Fill missing values
-# df = df.fillna(0)
+    # Convert date and select week
+    df_filtered['Date'] = pd.to_datetime(df_filtered['startDate per day'])
+    week_start = st.date_input("Select Week Starting Date", value=df_filtered['Date'].min())
+    week_end = week_start + pd.Timedelta(days=6)
+    df_week = df_filtered[(df_filtered['Date'] >= pd.to_datetime(week_start)) & (df_filtered['Date'] <= pd.to_datetime(week_end))]
 
-# # Selecting the best predictor "Missed" along with other relevant features
-# selected_features = ["Missed","Calls", "Demand", "AHT"]
-# targets = ["Service Level", "Q2", "ABN %"]
+    # Define features and target
+    features = ['Q2', 'Demand', 'Staffing', 'Requirement', 'Occ Assumption']
+    target = 'ABN %'
+    df_model = df_filtered[features + [target]].dropna()
 
-# # Dictionary to store model results
-# model_results = {}
+    # Dynamic bucketing based on ABN % distribution
+    abn_series = df_model[target]
+    num_buckets = min(5, len(abn_series.unique()))
+    quantiles = np.linspace(0, 1, num_buckets + 1)
+    bucket_edges = abn_series.quantile(quantiles).round(4).unique()
+    bucket_edges = np.sort(np.unique(bucket_edges))
 
-# for target in targets:
-#     X = df[selected_features]
-#     y = df[target]
+    bucket_labels = []
+    for i in range(len(bucket_edges) - 1):
+        lower = bucket_edges[i]
+        upper = bucket_edges[i + 1]
+        if i == len(bucket_edges) - 2:
+            label = f"{lower:.2f}%+"
+        else:
+            label = f"{lower:.2f}%-{upper:.2f}%"
+        bucket_labels.append(label)
 
-#     # Splitting data into training and test sets
-#     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    def bucket_abn_dynamic(abn):
+        for i in range(len(bucket_edges) - 1):
+            if abn < bucket_edges[i + 1]:
+                return bucket_labels[i]
+        return bucket_labels[-1]
 
-#     # Training a Linear Regression model
-#     model = LinearRegression()
-#     model.fit(X_train, y_train)
+    df_model['ABN_bucket'] = df_model[target].apply(bucket_abn_dynamic)
 
-#     # Predictions
-#     y_pred = model.predict(X_test)
+    # Encode target
+    le = LabelEncoder()
+    df_model['ABN_encoded'] = le.fit_transform(df_model['ABN_bucket'])
 
-#     # Evaluation metrics
-#     mae = mean_absolute_error(y_test, y_pred)
-#     r2 = r2_score(y_test, y_pred)
+    X = df_model[features]
+    y = df_model['ABN_encoded']
 
-#     # Save model
-#     model_filename = f"scenario_models/model_{target}_4.pkl"
-#     joblib.dump(model, model_filename)
+    # Check data sufficiency
+    if len(df_model) < 10 or len(np.unique(y)) < 2:
+        st.error("Not enough data or class diversity to train the model. Please select a different week or filter.")
+    else:
+        # Stratified split
+        class_counts = Counter(y)
+        min_class_count = min(class_counts.values())
 
-#     # Store results
-#     model_results[target] = {
-#         "Mean Absolute Error": mae,
-#         "R² Score": r2,
-#         "Regression Equation": f"{target} = {model.intercept_:.4f} + " +
-#                                " + ".join([f"({coef:.4f} * {feature})" for coef, feature in zip(model.coef_, selected_features)])
-#     }
+        if min_class_count < 2:
+            st.warning("Some ABN % buckets have fewer than 2 samples. Using random split instead of stratified split.")
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            model = xgb.XGBClassifier(eval_metric='mlogloss')
+            model.fit(X_train, y_train)
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-# # Display model results
-# print(model_results)
+            # Safe cross-validation
+            n_splits = min(3, min_class_count)
+            if n_splits < 2:
+                st.warning("Too few samples in some buckets for cross-validation. Skipping GridSearchCV.")
+                model = xgb.XGBClassifier(eval_metric='mlogloss')
+                model.fit(X_train, y_train)
+            else:
+                param_grid = {
+                    'max_depth': [3, 5],
+                    'learning_rate': [0.05, 0.1],
+                    'n_estimators': [100, 200],
+                    'subsample': [0.8, 1.0]
+                }
+                skf = StratifiedKFold(n_splits=n_splits)
+                grid_search = GridSearchCV(
+                    xgb.XGBClassifier(eval_metric='mlogloss'),
+                    param_grid,
+                    cv=skf,
+                    scoring='accuracy',
+                    verbose=0
+                )
+                grid_search.fit(X_train, y_train)
+                model = grid_search.best_estimator_
 
-# # Load trained models
-# model_service_level = joblib.load(r"scenario_models/model_Service Level_4.pkl")
-# model_q2 = joblib.load(r"scenario_models/model_Q2_4.pkl")
-# model_abn = joblib.load(r"scenario_models/model_ABN %_4.pkl")
+        # Classification report
+        y_pred = model.predict(X_test)
+        report = classification_report(
+            y_test,
+            y_pred,
+            labels=np.unique(y_test),
+            target_names=le.inverse_transform(np.unique(y_test)),
+            output_dict=True
+        )
+        report_df = pd.DataFrame(report).transpose()
+        st.subheader("Classification Report")
+        st.dataframe(report_df)
 
-# # Define feature inputs
-# selected_features = ["Missed", "Calls", "Demand", "AHT"]
+        # Plot metrics
+        st.subheader("Classification Metrics Visualization")
+        fig, ax = plt.subplots(figsize=(10, 5))
+        buckets = report_df.index[:-3]
+        ax.plot(buckets, report_df.loc[buckets, 'precision'], marker='o', label='Precision')
+        ax.plot(buckets, report_df.loc[buckets, 'recall'], marker='s', label='Recall')
+        ax.plot(buckets, report_df.loc[buckets, 'f1-score'], marker='^', label='F1-Score')
+        ax.set_title("Precision, Recall, F1-Score by ABN % Bucket")
+        ax.set_xlabel("ABN % Bucket")
+        ax.set_ylabel("Score")
+        ax.legend()
+        ax.grid(True)
+        st.pyplot(fig)
 
-# def predict_service_level(missed, calls, demand, aht):
-#     input_data = pd.DataFrame([[missed, calls, demand, aht]], columns=selected_features)
-#     return model_service_level.predict(input_data)[0]
+        # Simulation
+        st.subheader("Simulate ABN % Bucket Change")
 
-# def predict_q2(missed, calls, demand, aht):
-#     input_data = pd.DataFrame([[missed, calls, demand, aht]], columns=selected_features)
-#     return model_q2.predict(input_data)[0]
+        row_index = st.number_input("Select a row from test data for simulation", min_value=0, max_value=len(X_test)-1, value=0)
+        base_row = X_test.iloc[row_index].copy()
 
-# def predict_abn(missed, calls, demand, aht):
-#     input_data = pd.DataFrame([[missed, calls, demand, aht]], columns=selected_features)
-#     return model_abn.predict(input_data)[0]
+        st.write("Base Row Values:")
+        st.dataframe(pd.DataFrame([base_row]))
 
-def scn_4():
-    st.title("What-If Analysis: Impact of change in Occ assumption on service level, Q2 and abandonment rates")
+        modified_row = base_row.copy()
+        st.write("Adjust Feature Values:")
+        for feature in features:
+            change_percent = st.slider(f"{feature} change (%)", -500, 500, 0)
+            modified_row[feature] = base_row[feature] * (1 + change_percent / 100)
 
-    st.header("We are in progress")
-    
-    # st.header("Enter Inputs")
-    # missed = st.number_input("Missed Calls", min_value=0, max_value=1000, value=10, step=1)
-    # calls = st.number_input("Total Calls", min_value=0, max_value=100000, value=30000, step=100)
-    # demand = st.number_input("Demand", min_value=0.0, max_value=500000.0, value=300000.0, step=1000.0)
-    # aht = st.number_input("Average Handle Time (AHT)", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
-    
-    # if st.button("Predict KPIs"):
-    #     service_level = predict_service_level(missed, calls, demand, aht)
-    #     q2_time = predict_q2(missed, calls, demand, aht)
-    #     abn_rate = predict_abn(missed, calls, demand, aht)
-        
-    #     st.header("Prediction Results")
-    #     st.write(f"**Predicted Service Level:** {service_level:.4f}")
-    #     st.write(f"**Predicted Q2 Time:** {q2_time:.4f}")
-    #     st.write(f"**Predicted Abandon Rate:** {abn_rate:.4f}")
+        original_pred = model.predict(pd.DataFrame([base_row]))[0]
+        new_pred = model.predict(pd.DataFrame([modified_row]))[0]
 
-if __name__ == "__main__":
-    scn_4()
+        original_bucket = le.inverse_transform([original_pred])[0]
+        new_bucket = le.inverse_transform([new_pred])[0]
+        transitioned = original_bucket != new_bucket
+
+        result_df = pd.DataFrame([modified_row])
+        result_df['Original Bucket'] = original_bucket
+        result_df['New Bucket'] = new_bucket
+        result_df['Transitioned'] = transitioned
+
+        st.subheader("Simulation Result")
+        st.dataframe(result_df)
+
+        csv = result_df.to_csv(index=False).encode('utf-8')
+        st.download_button("Download Simulation Report", csv, "abn_simulation_result.csv", "text/csv")
