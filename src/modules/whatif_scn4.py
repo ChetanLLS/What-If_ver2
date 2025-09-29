@@ -8,8 +8,8 @@ import streamlit as st
 # from collections import Counter
 # import matplotlib.pyplot as plt
 
-st.title("ABN % Bucket Classification and Simulation")
-st.write("WIP")
+# st.title("ABN % Bucket Classification and Simulation")
+# st.write("WIP")
 
 # uploaded_file = st.file_uploader("Upload Weekly Excel File", type=["xlsx"])
 # if uploaded_file:
@@ -171,3 +171,11 @@ st.write("WIP")
 
 #         csv = result_df.to_csv(index=False).encode('utf-8')
 #         st.download_button("Download Simulation Report", csv, "abn_simulation_result.csv", "text/csv")
+
+def scn_4():
+    st.title("What-If Analysis: Impact of change in Occ assumption on service level, Q2 and abandonment rates")
+
+    st.header("We are in progress")
+
+if __name__ == "__main__":
+    scn_4()
