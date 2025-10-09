@@ -72,7 +72,7 @@ def sl_impact_of_q2_increase(df, model, q2, abn):
     return predictions
 
 # Streamlit App UI
-st.title("What-If Analysis: Service Level vs Q2 & ABN %")
+st.title("What-If Analysis: Service Level vs Q2 time")
 
 def scn1():
     file_path = st.file_uploader("Upload your Excel file", type=["xlsx"])
@@ -101,18 +101,18 @@ def scn1():
         # Train Model
         if not df_filtered.empty:
             model, mae, r2, beta_0, beta_1, beta_2 = train_regression_model(df_filtered)
-            
-            # Display model metrics
-            st.write(f"**Model Performance**")
-            st.write(f"Mean Absolute Error: **{mae:.2f}**")
-            st.write(f"R² Score: **{r2:.4f}**")
+            # # Display model metrics
+            # st.write(f"**Model Performance**")
+            # st.write(f"Mean Absolute Error: **{mae:.2f}**")
+            # st.write(f"R² Score: **{r2:.4f}**")
 
-            # Show Regression Equation
-            st.write(f"**Regression Equation:**")
-            st.latex(f"Service\\ Level = {beta_0:.4f} + ({beta_1:.4f} \\times Q2) + ({beta_2:.4f} \\times ABN\\%)")
+            # # Show Regression Equation
+            # st.write(f"**Regression Equation:**")
+            # st.latex(f"Service\\ Level = {beta_0:.4f} + ({beta_1:.4f} \\times Q2) + ({beta_2:.4f} \\times ABN\\%)")
 
             # User inputs for predictions
             q2_val = st.number_input("Set Q2 Time:", min_value=0, max_value=100, value=20, step=1)
+            st.write("Abandonment rate is just a parameter used in the equation- impct is very minimal")
             abn_val = st.number_input("Set Abandon Rate (%)", min_value=0, max_value=10, value=2, step=1)
             
             st.header("Prediction Results")

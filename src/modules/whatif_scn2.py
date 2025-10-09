@@ -23,7 +23,6 @@ def train_regression_model(df):
     X = df[features]
     y = df[target]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    print(X_train)
     model = LinearRegression()
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
@@ -47,26 +46,26 @@ def analyze_scenarios(df, model, occ,occ_assmp):
     fte_prediction = model.predict(test_data)[0]
     return int(fte_prediction)
 
-def fte_impact_of_demand_change(df, model, occ, occ_assmp, weighted_avg_staff):
+def fte_impact_of_demand_change(df, model, occ, occ_assmp):
     demand_changes = [-25,-20,-15,-10, -5, -2, -1, 0, 1, 2, 5, 10, 15, 20, 25]
     predictions = []
     for change in demand_changes:
         demand_scenario = df["Demand"].mean() * (1 + change / 100)
         fte_pred = model.predict(pd.DataFrame({
             "Occ Assumption": [occ_assmp],
-            "Staffing": [weighted_avg_staff], "Demand": [demand_scenario], "Occupancy Rate": [occ]
+            "Staffing": [df["Staffing"].mean()], "Demand": [demand_scenario], "Occupancy Rate": [occ]
         }))[0]
         predictions.append((change, demand_scenario, fte_pred))
     return predictions
 
-def impact_of_occ_assumption_change(df, model, occ, occ_assmp, weighted_avg_demand, weighted_avg_staff):
+def impact_of_occ_assumption_change(df, model, occ, occ_assmp):
     occ_changes = [-10, -5, -2, -1, 0, 1, 2, 5, 10]
     predictions = []
     for change in occ_changes:
-        occ_scenario = occ_assmp * (1 + change / 100)
+        occ_scenario = occ_assmp + (change / 100)
         fte_pred = model.predict(pd.DataFrame({
             "Occ Assumption": [occ_scenario],
-            "Staffing": [weighted_avg_staff], "Demand": [weighted_avg_demand], "Occupancy Rate": [occ],
+            "Staffing": [df['Staffing'].mean()], "Demand": [df['Demand'].mean()], "Occupancy Rate": [occ],
             "Occ Assumption": [occ_scenario]
         }))[0]
         predictions.append((change, occ_scenario, fte_pred))
@@ -132,6 +131,7 @@ def scn2():
         # abn = st.sidebar.slider("Set Abandon Rate (%)", min_value=0.0, max_value=20.0, value=float(avg_abn), step=0.01)
         occ = st.sidebar.slider("Set Occupancy Rate (%)", min_value=0, max_value=100, value=int(avg_occ), step=1)
         occ_assmp = st.sidebar.slider("Set Occ Assumption (%)", min_value=0, max_value=100, value=int(avg_occ_assmp), step=1)
+
             
         # Rename columns safely
         filtered_df.rename(columns={ 
@@ -164,21 +164,22 @@ def scn2():
         st.write(f"Predicted FTE Requirement based on user inputs: {fte_prediction}")
     
         st.header("FTE Impact on Demand Change")
-        weighted_avg_demand = weekly_df['Demand'].mean()
-        weighted_avg_staff = (weekly_df['Staffing'] * weekly_df['Calls']).sum() / weekly_df['Calls'].sum()
-        st.write(f"**Average Demand Weekly = {weighted_avg_demand * 7:.2f} | Average Staffing = {weighted_avg_staff:.2f}**")
+        avg_demand = weekly_df['Demand'].mean()
+
+        avg_staff = weekly_df['Staffing'].mean()
+        # weighted_avg_staff = (weekly_df['Staffing'] * weekly_df['Calls']).sum() / weekly_df['Calls'].sum()
+        
+        st.write(f"**Average Demand Weekly = {avg_demand * 7:.2f} | Average Staffing = {avg_staff:.2f}**")
 
 
-        demand_impact = fte_impact_of_demand_change(weekly_df, model, occ/100, occ_assmp/100, weighted_avg_staff)
+        demand_impact = fte_impact_of_demand_change(weekly_df, model, occ/100, occ_assmp/100)
         for change, demand_scenario, fte_pred in demand_impact:
             st.write(f"Demand Change = {change}% | New Weekly Demand = {demand_scenario * 7:.2f}: | Predicted FTE Requirement= {fte_pred:.2f}")
 
         st.header("FTE Impact on OCC Assumption Change")
-        weighted_avg_demand = weekly_df['Demand'].mean()
-        weighted_avg_staff = (weekly_df['Staffing'] * weekly_df['Calls']).sum() / weekly_df['Calls'].sum()
-        st.write(f"**Average Demand Weekly = {weighted_avg_demand * 7:.2f} | Average Staffing = {weighted_avg_staff:.2f}**")
+        st.write(f"**Average Demand Weekly = {avg_demand * 7:.2f} | Average Staffing = {avg_staff:.2f}**")
 
-        occ_impact = impact_of_occ_assumption_change(weekly_df, model, occ/100,occ_assmp/100, weighted_avg_demand, weighted_avg_staff)
+        occ_impact = impact_of_occ_assumption_change(weekly_df, model, occ/100,occ_assmp/100)
         for change, occ_scenario, fte_pred in occ_impact:
             st.write(f"Occ Assump Change {change}% | New Occupancy Assumption = {occ_scenario * 100:.1f}% | Predicted FTE Requirement = {fte_pred:.2f}")
 

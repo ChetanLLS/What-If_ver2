@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import timedelta
+
 def run_fte_analysis_4():
     # File uploader
     uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
@@ -36,7 +37,6 @@ def run_fte_analysis_4():
         # Date input with default value set to latest Sunday
         start_date = st.sidebar.date_input('Start Date', value=latest_sunday if latest_sunday else None)    
         end_date = start_date + timedelta(days=6)
-        
         
         usd_options = data['USD'].unique()
         level_options = data['Level'].unique()
@@ -122,8 +122,11 @@ def run_fte_analysis_4():
                 st.success(f"Adjusted Demand: {adjusted_demand:.2f}")
         except Exception as e:
             st.error(f"An error occurred while calculating adjusted demand")
+        
+        # Extract year from the date column
+        data['Year'] = pd.to_datetime(data['startDate per day']).dt.year
+    
 
-            
         filtered_OrigDemand_OrigStaff = data[
             (data['Demand'] >= ll_input1 * daily_demand) &
             (data['Demand'] <= ul_input1 * daily_demand) &
@@ -138,10 +141,18 @@ def run_fte_analysis_4():
             (data['Staffing'] >= ll_input2 * adjusted_staffing1) &
             (data['Staffing'] <= ul_input2 * adjusted_staffing1)
         ]
+
+
+        # Define weights
+        weights = {2025: 0.6, 2024: 0.2, 2023: 0.2}
+        filtered_limits['Weight'] = filtered_limits['Year'].map(weights)
+        weighted_q2 = (filtered_limits['Q2'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+        weighted_occr = (filtered_limits['Occupancy Rate'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+        weighted_abn = (filtered_limits['ABN %'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
         
-        delta_chg_q2 = (filtered_limits['Q2'].mean()-filtered_OrigDemand_OrigStaff['Q2'].mean())/filtered_OrigDemand_OrigStaff['Q2'].mean()
-        delta_chg_or = (filtered_limits['Occupancy Rate'].mean()-filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean())/filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean()
-        delta_chg_abn = (filtered_limits['ABN %'].mean()-filtered_OrigDemand_OrigStaff['ABN %'].mean())/filtered_OrigDemand_OrigStaff['ABN %'].mean() 
+        delta_chg_q2 = (weighted_q2 - filtered_OrigDemand_OrigStaff['Q2'].mean())/filtered_OrigDemand_OrigStaff['Q2'].mean()
+        delta_chg_or = (weighted_occr - filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean())/filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean()
+        delta_chg_abn = (weighted_abn - filtered_OrigDemand_OrigStaff['ABN %'].mean())/filtered_OrigDemand_OrigStaff['ABN %'].mean() 
 
         num_rows = len(filtered_limits)
 
@@ -192,7 +203,6 @@ def run_fte_analysis_4():
         
         
         #Report section
-        
         
         # Divider line
         st.markdown("---")

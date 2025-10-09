@@ -46,21 +46,21 @@ from modules.whatif_scn6_7 import scn6_7
 
 # Dictionary mapping scenarios to functions
 SCENARIOS = {
-    "Scenario 1 - Average SL% while aiming to Q2 target and ABN % goal": scn1,
-    "Scenario 2 - Requirement Change based on Q2 Time, ABN % and Occ adjustments": scn2,
-    "Scenario 3 - Needed FTE based on Demand Changes": scn3,
+    "Scenario 1 - Average SL% while aiming to Q2 target": scn1,
+    "Scenario 2 - Staffing requirements change based on occupancy assumptions, occupancy rate, and interval-based demand changes": scn2,
+    "Scenario 3 - Staffing requirement based on demand change, Q2 time, occupancy assumptions, occupancy rate": scn3,
     "Scenario 4 - Work in progress": scn_4,
-    "Scenario 5 - Staffing Requirements based on KPI adjustments": scn_5,
-    "Scenario 6 - Calls per FTE Change": scn6_7,
+    "Scenario 5 - Actual staffing based on KPI adjustments (input variables be selected based on importance)": scn_5,
+    "Scenario 6 - CallsPerFTE impact on other variables": scn6_7,
 }
 
 # Scenario descriptions
 SCENARIO_DESCRIPTIONS = {
-    "Scenario 1": "Determine the lowest service level % we should run at while still maintaining our Q2 time and Abandonment rate goals.",
-    "Scenario 2": "Determine the change in FTE requirements if we adjust service level, Q2 time, abandonment rate, OCC assumption, or weekly fluctuation.",
-    "Scenario 3": "Determine how many FTEs we need to add if we increase demand by a certain % per month/week/year.",
+    "Scenario 1": "Determine the lowest service level % we should run at while still maintaining our Q2 time goal.",
+    "Scenario 2": "Determine the change in FTE requirements if we adjust occupancy assumptions, occupancy rate, and interval-based demand changes",
+    "Scenario 3": "The model estimates FTE requirements based on input variables including weekly demand increase %, Q2 time, occupancy assumptions, and occupancy rate",
     "Scenario 4": "Estimate service level, Q2 time, or abandonment rate change if we increase/decrease OCC assumption by a given percent.",
-    "Scenario 5": "Predict KPI changes (Q2 time, abandonment rate, service level) if staffing requirements are adjusted by a certain percentage.",
+    "Scenario 5": "Predict KPI changes (input variables will be automatically in the drop down based on importance)",
     "Scenario 6": "Assess change in calls per FTE for any of the above scenarios (1-5)."
 }
 

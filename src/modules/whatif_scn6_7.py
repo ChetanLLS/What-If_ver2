@@ -87,7 +87,8 @@ def scn6_7():
         df = pd.read_excel(file_path)
         st.success("Excel file uploaded successfully!")
 
-        df['Staffing'] *= 1.4  # Adjustment
+        # staffing adjustment
+        df['Staffing'] = df['Staffing'] *1.4  
 
         df_date = df[(df['USD'] == 'Combined') & (df['Level'] == 'Combined')].copy()
         df_date['startDate'] = pd.to_datetime(df_date['startDate per day'])

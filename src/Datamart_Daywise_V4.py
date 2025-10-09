@@ -288,14 +288,14 @@ def fte_combined_level_calc(df):
         combined_l5_vri = usd_l5_vri + global_l5_vri
         usd_combined_vri = usd_l4_vri + usd_l5_vri
         global_combined_vri = global_l4_vri + global_l5_vri
-        combined_combined_vri = usd_combined_vri + global_combined_vri        
+        combined_combined_vri = usd_combined_vri + global_combined_vri
 
         combined_rows.extend([
-            {"Date": date, "Language": lang, "USD": "Combined", "Level": "L3", "Total OPI FTEs": combined_l3_opi},
+            {"Date": date, "Language": lang, "USD": "Combined", "Level": "L3", "Total OPI FTEs": combined_l3_opi, "Total VRI FTEs": ""},
             {"Date": date, "Language": lang, "USD": "Combined", "Level": "L4", "Total OPI FTEs": combined_l4_opi, "Total VRI FTEs": combined_l4_vri},
             {"Date": date, "Language": lang, "USD": "Combined", "Level": "L5", "Total OPI FTEs": combined_l5_opi, "Total VRI FTEs": combined_l5_vri},
             {"Date": date, "Language": lang, "USD": "USD", "Level": "Combined", "Total OPI FTEs": usd_combined_opi, "Total VRI FTEs": usd_combined_vri },
-            {"Date": date, "Language": lang, "USD": "Global", "Level": "Combined", "Total OPI FTEs": global_combined_opi, "Total OPI FTEs": global_combined_vri},
+            {"Date": date, "Language": lang, "USD": "Global", "Level": "Combined", "Total OPI FTEs": global_combined_opi, "Total VRI FTEs": global_combined_vri},
             {"Date": date, "Language": lang, "USD": "Combined", "Level": "Combined", "Total OPI FTEs": combined_combined_opi, "Total VRI FTEs": combined_combined_vri}
         ])
 
