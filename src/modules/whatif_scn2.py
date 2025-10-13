@@ -75,7 +75,7 @@ def impact_of_occ_assumption_change(model, occ,occ_assmp,demand,staff):
         occ_scenario = occ_assmp + (change / 100)
         fte_pred = model.predict(pd.DataFrame({
             "Occ Assumption": [occ_scenario],
-            "Staffing": [demand], "Demand": [staff], "Occupancy Rate": [occ],
+            "Staffing": [staff], "Demand": [demand], "Occupancy Rate": [occ],
             "Occ Assumption": [occ_scenario]
         }))[0]
         predictions.append((change, occ_scenario, fte_pred))
