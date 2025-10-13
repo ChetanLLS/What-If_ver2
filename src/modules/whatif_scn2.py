@@ -36,6 +36,16 @@ def train_regression_model(df):
     # print(f"Regression Equation: Requirement = {equation} + {intercept:.2f}")
     return model
 
+def analyze_scenarios_check(model, occ,occ_assmp,demand,staff):
+    test_data = pd.DataFrame({
+        "Occ Assumption": [occ_assmp],
+        "Staffing": [staff],
+        "Demand": [demand],
+        "Occupancy Rate": [occ]  
+    })
+    fte_prediction = model.predict(test_data)[0]
+    return int(fte_prediction)
+
 def analyze_scenarios(df, model, occ,occ_assmp):
     test_data = pd.DataFrame({
         "Occ Assumption": [occ_assmp],
@@ -46,33 +56,32 @@ def analyze_scenarios(df, model, occ,occ_assmp):
     fte_prediction = model.predict(test_data)[0]
     return int(fte_prediction)
 
-def fte_impact_of_demand_change(df, model, occ, occ_assmp):
+def fte_impact_of_demand_change(model, occ,occ_assmp,demand,staff):
     demand_changes = [-25,-20,-15,-10, -5, -2, -1, 0, 1, 2, 5, 10, 15, 20, 25]
     predictions = []
     for change in demand_changes:
-        demand_scenario = df["Demand"].mean() * (1 + change / 100)
+        demand_scenario = demand * (1 + change / 100)
         fte_pred = model.predict(pd.DataFrame({
             "Occ Assumption": [occ_assmp],
-            "Staffing": [df["Staffing"].mean()], "Demand": [demand_scenario], "Occupancy Rate": [occ]
+            "Staffing": staff, "Demand": [demand_scenario], "Occupancy Rate": [occ]
         }))[0]
         predictions.append((change, demand_scenario, fte_pred))
     return predictions
 
-def impact_of_occ_assumption_change(df, model, occ, occ_assmp):
+def impact_of_occ_assumption_change(model, occ,occ_assmp,demand,staff):
     occ_changes = [-10, -5, -2, -1, 0, 1, 2, 5, 10]
     predictions = []
     for change in occ_changes:
         occ_scenario = occ_assmp + (change / 100)
         fte_pred = model.predict(pd.DataFrame({
             "Occ Assumption": [occ_scenario],
-            "Staffing": [df['Staffing'].mean()], "Demand": [df['Demand'].mean()], "Occupancy Rate": [occ],
+            "Staffing": [demand], "Demand": [staff], "Occupancy Rate": [occ],
             "Occ Assumption": [occ_scenario]
         }))[0]
         predictions.append((change, occ_scenario, fte_pred))
     return predictions
 
 st.title("What-If Analysis for FTE Requirements")
-st.sidebar.header("User Inputs")
 
 def scn2():
 
@@ -120,19 +129,9 @@ def scn2():
         weekly_df = filtered_df[(filtered_df['Date'] >= start_of_week) & (filtered_df['Date'] <= end_of_week)]
 
         # Calculate weekly averages      
-
-        # avg_q2 = weekly_df['Q2'].mean() if 'Q2' in weekly_df else 20
-        # avg_abn = round(weekly_df['ABN %'].mean(),2) if 'ABN %' in weekly_df else 2.00
         avg_occ = weekly_df['Occupancy Rate'].mean()*100 if 'Occupancy Rate' in weekly_df else 70
         avg_occ_assmp = weekly_df['Occ Assumption'].mean()*100 if 'Occ Assumption' in weekly_df else 70
 
-        # Sidebar sliders with dynamic defaults
-        # q2 = st.sidebar.slider("Set Q2 Time", min_value=0, max_value=100, value=int(avg_q2), step=1)
-        # abn = st.sidebar.slider("Set Abandon Rate (%)", min_value=0.0, max_value=20.0, value=float(avg_abn), step=0.01)
-        occ = st.sidebar.slider("Set Occupancy Rate (%)", min_value=0, max_value=100, value=int(avg_occ), step=1)
-        occ_assmp = st.sidebar.slider("Set Occ Assumption (%)", min_value=0, max_value=100, value=int(avg_occ_assmp), step=1)
-
-            
         # Rename columns safely
         filtered_df.rename(columns={ 
             'Met': 'Service Level',
@@ -155,33 +154,46 @@ def scn2():
 
         for col in ['Occ Assumption', 'Q2', 'Service Level', 'ABN %']:
             filtered_df1[col] = pd.to_numeric(filtered_df1[col], errors='coerce')
-     
-
-        st.header("Output------------------------------>")          
+              
         model = train_regression_model(filtered_df1)
 
-        fte_prediction = analyze_scenarios(weekly_df, model, occ/100, occ_assmp/100)
-        st.write(f"Predicted FTE Requirement based on user inputs: {fte_prediction}")
-    
-        st.header("FTE Impact on Demand Change")
-        avg_demand = weekly_df['Demand'].mean()
+        # Create a visual boundary using a container
+        with st.container():
+            st.markdown("### 🔍 Model - Simulator")
 
-        avg_staff = weekly_df['Staffing'].mean()
-        # weighted_avg_staff = (weekly_df['Staffing'] * weekly_df['Calls']).sum() / weekly_df['Calls'].sum()
+            # Create a form
+            with st.form(key="input_form"):
+
+                occ_input_for_form = st.text_input("Set Occupancy Rate (%)", value=max(round(float(avg_occ),2), 0.0))
+                occ_assmp_input_for_form = st.text_input("Set Occ Assumption (%)", value=max(round(float(avg_occ_assmp),2), 0.0))
+                demand_input_for_form = st.text_input("Enter Demand", value = round(weekly_df['Demand'].sum(),2))
+                staffing_input_for_form = st.text_input("Enter Staffing", value = round(weekly_df['Staffing'].mean(),2))
+                submit_button = st.form_submit_button(label="Generate Results")
+
+                if submit_button:
+                    if demand_input_for_form and staffing_input_for_form:
+                        fte_prediction_check = analyze_scenarios_check(model, float(occ_input_for_form)/100, float(occ_assmp_input_for_form)/100, float(demand_input_for_form)/7, float(staffing_input_for_form))
+                        st.success(f"✅ Predicted FTE Requirement check based on user inputs: {fte_prediction_check}")
+                    else:
+                        st.warning("⚠️ Please enter a value before submitting.")       
         
-        st.write(f"**Average Demand Weekly = {avg_demand * 7:.2f} | Average Staffing = {avg_staff:.2f}**")
+        with st.form(key="input_form2"):
+            st.markdown("### Generate Output Combinations")
+            submit_button2 = st.form_submit_button(label="Create Table")            
+            if submit_button2:
+                if demand_input_for_form and staffing_input_for_form:
+                    st.markdown("### FTE Impact on Demand Change")
+                    demand_impact = fte_impact_of_demand_change(model, float(occ_input_for_form)/100, float(occ_assmp_input_for_form)/100, float(demand_input_for_form)/7, float(staffing_input_for_form))
+                    for change, demand_scenario, fte_pred in demand_impact:
+                        st.write(f"Demand Change = {change}% | New Weekly Demand = {demand_scenario * 7:.2f}: | Predicted FTE Requirement= {fte_pred:.2f}")
 
+                    st.markdown("### FTE Impact on OCC Assumption Change")
+                    occ_impact = impact_of_occ_assumption_change(model, float(occ_input_for_form)/100, float(occ_assmp_input_for_form)/100, float(demand_input_for_form)/7, float(staffing_input_for_form))
+                    for change, occ_scenario, fte_pred in occ_impact:
+                        st.write(f"Occ Assump Change {change}% | New Occupancy Assumption = {occ_scenario * 100:.1f}% | Predicted FTE Requirement = {fte_pred:.2f}")                    
+                else:
+                    st.warning("⚠️ Please enter a value before submitting.") 
 
-        demand_impact = fte_impact_of_demand_change(weekly_df, model, occ/100, occ_assmp/100)
-        for change, demand_scenario, fte_pred in demand_impact:
-            st.write(f"Demand Change = {change}% | New Weekly Demand = {demand_scenario * 7:.2f}: | Predicted FTE Requirement= {fte_pred:.2f}")
-
-        st.header("FTE Impact on OCC Assumption Change")
-        st.write(f"**Average Demand Weekly = {avg_demand * 7:.2f} | Average Staffing = {avg_staff:.2f}**")
-
-        occ_impact = impact_of_occ_assumption_change(weekly_df, model, occ/100,occ_assmp/100)
-        for change, occ_scenario, fte_pred in occ_impact:
-            st.write(f"Occ Assump Change {change}% | New Occupancy Assumption = {occ_scenario * 100:.1f}% | Predicted FTE Requirement = {fte_pred:.2f}")
 
 if __name__ == '__main__':
     scn2()

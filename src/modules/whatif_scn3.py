@@ -115,8 +115,8 @@ def scn3():
             mse_train = mean_squared_error(y_train, y_train_pred)
             mse_test = mean_squared_error(y_test, y_test_pred)
 
-            training_time = time.time() - start_time
-            st.success(f"Model trained. R² Train: {r2_train:.4f}, R² Test: {r2_test:.4f}, Time: {training_time:.2f}s")
+            # training_time = time.time() - start_time
+            # st.success(f"Model trained. R² Train: {r2_train:.4f}, R² Test: {r2_test:.4f}, Time: {training_time:.2f}s")
 
             joblib.dump(model, 'linear_regression_model.pkl')
             joblib.dump(scaler, 'scaler.pkl')
@@ -129,14 +129,14 @@ def scn3():
                 'MSE_Test': [mse_test]
             })
 
-            try:
-                existing_log = pd.read_excel('model_accuracy_log.xlsx')
-                log_df = pd.concat([existing_log, log_df], ignore_index=True)
-            except FileNotFoundError:
-                pass
+            # try:
+            #     existing_log = pd.read_excel('model_accuracy_log.xlsx')
+            #     log_df = pd.concat([existing_log, log_df], ignore_index=True)
+            # except FileNotFoundError:
+            #     pass
 
-            log_df.to_excel('model_accuracy_log.xlsx', index=False)
-            st.write("Model accuracy logged successfully.")
+            # log_df.to_excel('model_accuracy_log.xlsx', index=False)
+            # st.write("Model accuracy logged successfully.")
 
             def predict_fte(demand_change_percent, scenario_type, date_str, df, q2, occ, occ_assmp):
                 try:
