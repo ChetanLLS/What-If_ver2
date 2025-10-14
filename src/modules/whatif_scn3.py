@@ -19,25 +19,27 @@ def scn3():
         df_date = df[(df['USD'] == 'Combined') & (df['Level'] == 'Combined')].copy()
         df_date['startDate'] = pd.to_datetime(df_date['startDate per day'])
         max_date = df_date['startDate'].max()
-        formatted_max_date = max_date.strftime('%Y-%m-%d')
+        # max_date = max_date.strftime('%Y-%m-%d')
 
         # Find the Sunday of that week
         sunday_date = max_date - timedelta(days=max_date.weekday() + 1) if max_date.weekday() != 6 else max_date
         formatted_sunday = sunday_date.strftime('%Y-%m-%d')
 
-        date_str = st.text_input("Enter the date to search (YYYY-MM-DD):", value=formatted_sunday)
-        search_date = datetime.strptime(date_str, "%Y-%m-%d")
-        st.write(f"Selected Date: {search_date.date()}")  
+        cols = st.columns(3)
+        date_str = cols[0].text_input("Enter Date (YYYY-MM-DD):", value=formatted_sunday)
+        search_date = datetime.strptime(date_str, "%Y-%m-%d")  
 
         usd_options = df['USD'].unique()
         level_options = df['Level'].unique()
         default_usd_global_index = list(usd_options).index("Combined") if "Combined" in usd_options else 0
         default_level_index = list(level_options).index("Combined") if "Combined" in level_options else 0
 
-        language = st.selectbox("Select Language", df['Language'].unique())
-        req_media = st.selectbox("Select Req Media", df['Req Media'].unique())
-        usd = st.selectbox("Select USD", df['USD'].unique(), index=default_usd_global_index)
-        level = st.selectbox("Select Level", df['Level'].unique(), index=default_level_index)
+        language = cols[1].selectbox("Select Language", df['Language'].unique())
+        req_media = cols[2].selectbox("Select Req Media", df['Req Media'].unique())
+
+        cols = st.columns(2)
+        usd = cols[0].selectbox("Select USD", df['USD'].unique(), index=default_usd_global_index)
+        level = cols[1].selectbox("Select Level", df['Level'].unique(), index=default_level_index)
 
         filtered_df = df[(df['Language'] == language) &
                          (df['Req Media'] == req_media) &
@@ -46,6 +48,12 @@ def scn3():
 
         # Ensure date column is datetime
         filtered_df['Date'] = pd.to_datetime(filtered_df['startDate per day'], errors='coerce')
+        
+        # Rename columns
+        filtered_df.rename(columns={ 
+            'Met': 'Service Level',
+            'Loaded AHT': 'AHT'
+        }, inplace=True)        
 
         # Get week range
         start_of_week = search_date
@@ -56,23 +64,20 @@ def scn3():
 
         avg_q2 = weekly_df['Q2'].mean() if 'Q2' in weekly_df else 20
         # avg_abn = round(weekly_df['ABN %'].mean(),2) if 'ABN %' in weekly_df else 2.00
+        # avg_sl = round(weekly_df['Service Level'].mean()*100,2) if 'Service Level' in weekly_df else 90
         avg_occ = weekly_df['Occupancy Rate'].mean()*100 if 'Occupancy Rate' in weekly_df else 70
         avg_occ_assmp = weekly_df['Occ Assumption'].mean()*100 if 'Occ Assumption' in weekly_df else 70
 
         # Sidebar sliders with dynamic defaults
-        q2 = st.sidebar.slider("Set Q2 Time", min_value=0, max_value=100, value=int(avg_q2), step=1)
+
+        q2 = st.sidebar.slider("Set Q2 Time", min_value=0.00, max_value=100.00, value=max(round(float(avg_q2),2), 0.0), step=0.01)
+        # sl = st.sidebar.slider("Set Service Level", min_value=0.00, max_value=100.00, value=max(round(float(avg_sl),2), 0.0), step=0.01)
         # abn = st.sidebar.slider("Set Abandon Rate (%)", min_value=0.00, max_value=10.00, value=float(avg_abn), step=0.01)
-        occ = st.sidebar.slider("Set Occupancy Rate (%)", min_value=0, max_value=100, value=int(avg_occ), step=1)
-        occ_assmp = st.sidebar.slider("Set Occ Assumption (%)", min_value=0, max_value=100, value=int(avg_occ_assmp), step=1)
+        occ = st.sidebar.slider("Set Occupancy Rate (%)", min_value=0.00, max_value=100.00, value=max(round(float(avg_occ),2), 0.0), step=0.01)
+        occ_assmp = st.sidebar.slider("Set Occ Assumption (%)", min_value=0.00, max_value=100.00, value=max(round(float(avg_occ_assmp),2), 0.0), step=0.01)
 
         try:
             start_time = time.time()
-            
-            # Rename columns safely
-            filtered_df.rename(columns={ 
-                'Met': 'Service Level',
-                'Loaded AHT': 'AHT'
-            }, inplace=True)
 
             # Select and copy relevant columns
             filtered_df1 = filtered_df[['Date', 'Service Level', 'Q2', 'AHT', 'Demand',
@@ -95,16 +100,20 @@ def scn3():
             train_df = filtered_df1[filtered_df1['Date'] <= split_date]
             test_df = filtered_df1[filtered_df1['Date'] > split_date]
 
-            X_train = train_df[['Demand', 'Q2', 'Occupancy Rate', 'Occ Assumption']]
-            X_test = test_df[['Demand', 'Q2', 'Occupancy Rate', 'Occ Assumption']]
+            X_train = train_df[['Demand', 'Q2', 'Occupancy Rate', 'Occ Assumption']].reset_index(drop=True)
+
+            X_test = test_df[['Demand', 'Q2', 'Occupancy Rate', 'Occ Assumption']].reset_index(drop=True)
+
             y_train = train_df['Requirement']
             y_test = test_df['Requirement']
 
             scaler = StandardScaler()
+            
             X_train = scaler.fit_transform(X_train)
             X_test = scaler.transform(X_test)
 
             model = LinearRegression()
+
             model.fit(X_train, y_train)
 
             y_train_pred = model.predict(X_train)
@@ -194,8 +203,9 @@ def scn3():
                     return None
 
             # UI Inputs
-            demand_change_percent = st.number_input("Enter demand change (%) [Increase +ve| Decrease -ve]:", min_value=-100, max_value=100, value=0, step=1)
-            scenario_type = st.selectbox("Select the scenario type:", ["Weekly"]).strip().lower()
+            cols = st.columns(2)
+            demand_change_percent = cols[0].number_input("Enter demand change (%) [Increase +ve| Decrease -ve]:", min_value=-100, max_value=100, value=0, step=1)
+            scenario_type = cols[1].selectbox("Select the scenario type:", ["Weekly"]).strip().lower()
 
             if st.button('Predict FTE'):
                 result = predict_fte(demand_change_percent, scenario_type, date_str, filtered_df1, q2, occ/100, occ_assmp/100)

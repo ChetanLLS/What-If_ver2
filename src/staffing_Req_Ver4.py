@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import timedelta
+from datetime import datetime
 
 def run_fte_analysis_4():
     # File uploader
@@ -33,7 +34,7 @@ def run_fte_analysis_4():
     
 
         # Sidebar for user inputs
-        st.sidebar.header('Simulator Parameters')
+        st.sidebar.header('Common Filters - for both Simulator and Report Generation Sections -->')
         # Date input with default value set to latest Sunday
         start_date = st.sidebar.date_input('Start Date', value=latest_sunday if latest_sunday else None)    
         end_date = start_date + timedelta(days=6)
@@ -49,10 +50,18 @@ def run_fte_analysis_4():
 
         # New Change
         data["Staffing"] = data["Staffing"]*1.4
+
+        # Rename columns safely
+        data.rename(columns={ 
+            'Met': 'Service Level',
+            'Loaded AHT': 'AHT'
+        }, inplace=True)
         
         
-        demand_change = st.sidebar.number_input(
-            'Demand Change (%)',
+        st.subheader("Filters for Simulator-->")
+        
+        demand_change = st.number_input(
+            'Demand Change (%) [Decrease (-ve) | Increase (+ve)]',
             min_value=-99.0,
             max_value=100.0,
             value=0.0,
@@ -81,22 +90,24 @@ def run_fte_analysis_4():
             avg_q2_time = (filtered_data['Q2'] * filtered_data['Calls']).sum() / filtered_data['Calls'].sum()
             avg_occ_rate = (filtered_data['Occupancy Rate'] * filtered_data['Calls']).sum() / filtered_data['Calls'].sum()
             avg_abn_rate = (filtered_data['ABN %'] * filtered_data['Calls']).sum() / filtered_data['Calls'].sum()
+            avg_sl = (filtered_data['Service Level'] * filtered_data['Calls']).sum() / filtered_data['Calls'].sum()
         else:
             avg_q2_time = filtered_data['Q2'].mean()
             avg_occ_rate = filtered_data['Occupancy Rate'].mean()
             avg_abn_rate = filtered_data['ABN %'].mean()
+            avg_sl = filtered_data['Service Level'].mean()
 
         staffing_calc_for_ul_ll = filtered_data['Staffing'].mean()
-        # avg_staffing_max_for_week = filtered_data['Staffing'].max()
-        # New Change
+
         avg_staffing_max_for_week = filtered_data['Staffing'].mean()
 
         # Staffing adjustment options- New Changes
-        st.sidebar.subheader("Staffing Adjustment Method")
-        staffing_method = st.sidebar.radio("Choose method", ["Percentage", "Absolute"])
+        st.write("Staffing Adjustment Method-")
+        cols = st.columns(3)
+        staffing_method = cols[0].radio("Choose method", ["Percentage", "Absolute"])
         if staffing_method == "Percentage":
-            staffing_direction = st.sidebar.radio("Adjustment Type", ["Increase", "Decrease"])
-            staffing_change_pct = st.sidebar.number_input("Staffing Change (%)", min_value=0.0, value=5.0)
+            staffing_direction = cols[1].radio("Adjustment Type", ["Increase", "Decrease"])
+            staffing_change_pct = cols[2].number_input("Staffing Change (%)", min_value=0.0, value=5.0)
             if staffing_direction == "Increase":
                 adjusted_staffing = avg_staffing_max_for_week * (1 + staffing_change_pct / 100)
                 adjusted_staffing1 = staffing_calc_for_ul_ll * (1 + staffing_change_pct / 100)
@@ -104,8 +115,8 @@ def run_fte_analysis_4():
                 adjusted_staffing = avg_staffing_max_for_week * (1 - staffing_change_pct / 100)
                 adjusted_staffing1 = staffing_calc_for_ul_ll * (1 - staffing_change_pct / 100)
         else:
-            staffing_direction = st.sidebar.radio("Adjustment Type", ["Increase", "Decrease"])
-            staffing_change_abs = st.sidebar.number_input("Staffing Change (absolute)", min_value=0.0, value=1.0)
+            staffing_direction = st.radio("Adjustment Type", ["Increase", "Decrease"])
+            staffing_change_abs = st.number_input("Staffing Change (absolute)", min_value=0.0, value=1.0)
             if staffing_direction == "Increase":
                 adjusted_staffing = avg_staffing_max_for_week + staffing_change_abs
                 adjusted_staffing1 = staffing_calc_for_ul_ll + staffing_change_abs
@@ -142,17 +153,36 @@ def run_fte_analysis_4():
             (data['Staffing'] <= ul_input2 * adjusted_staffing1)
         ]
 
+        # Get the current year
+        current_year = datetime.now().year
 
         # Define weights
-        weights = {2025: 0.6, 2024: 0.2, 2023: 0.2}
+        weights = {
+            current_year: 0.6,
+            current_year - 1: 0.2,
+            current_year - 2: 0.2
+        }
+
+        # Map weights to the DataFrame
         filtered_limits['Weight'] = filtered_limits['Year'].map(weights)
+        filtered_OrigDemand_OrigStaff['Weight'] = filtered_OrigDemand_OrigStaff['Year'].map(weights)
+
+
+        weighted_q2_orig = (filtered_OrigDemand_OrigStaff['Q2'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+        weighted_occr_orig = (filtered_OrigDemand_OrigStaff['Occupancy Rate'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+        weighted_abn_orig = (filtered_OrigDemand_OrigStaff['ABN %'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+        weighted_sl_orig = (filtered_OrigDemand_OrigStaff['Service Level'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+
         weighted_q2 = (filtered_limits['Q2'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
         weighted_occr = (filtered_limits['Occupancy Rate'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
         weighted_abn = (filtered_limits['ABN %'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+        weighted_sl = (filtered_limits['Service Level'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
         
-        delta_chg_q2 = (weighted_q2 - filtered_OrigDemand_OrigStaff['Q2'].mean())/filtered_OrigDemand_OrigStaff['Q2'].mean()
-        delta_chg_or = (weighted_occr - filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean())/filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean()
-        delta_chg_abn = (weighted_abn - filtered_OrigDemand_OrigStaff['ABN %'].mean())/filtered_OrigDemand_OrigStaff['ABN %'].mean() 
+        delta_chg_q2 = (weighted_q2 - weighted_q2_orig)/weighted_q2_orig
+        delta_chg_or = (weighted_occr - weighted_occr_orig)/weighted_occr_orig
+        delta_chg_abn = (weighted_abn - weighted_abn_orig)/weighted_abn_orig
+        delta_chg_sl = (weighted_sl - weighted_sl_orig)/weighted_sl_orig
+
 
         num_rows = len(filtered_limits)
 
@@ -167,239 +197,339 @@ def run_fte_analysis_4():
             reliability_text = "High Reliability"
             
         new_avg_q2_time = avg_q2_time * (1 + delta_chg_q2)
-        new_avg_occ_rate = avg_occ_rate * (1 + delta_chg_or)
-        new_avg_abn_rate = avg_abn_rate * (1 + delta_chg_abn)  
-        
-
-    #     if 'Calls' in filtered_limits.columns and filtered_limits['Calls'].sum() > 0:
-    #         new_avg_q2_time = (filtered_limits['Q2'] * filtered_limits['Calls']).sum() / filtered_limits['Calls'].sum()
-    #         new_avg_occ_rate = (filtered_limits['Occupancy Rate'] * filtered_limits['Calls']).sum() / filtered_limits['Calls'].sum()
-    #         new_avg_abn_rate = (filtered_limits['ABN %'] * filtered_limits['Calls']).sum() / filtered_limits['Calls'].sum()
-    #     else:
-    #         new_avg_q2_time = filtered_limits['Q2'].mean()
-    #         new_avg_occ_rate = filtered_limits['Occupancy Rate'].mean()
-    #         new_avg_abn_rate = filtered_limits['ABN %'].mean()
+        new_avg_occ_rate = min(avg_occ_rate * (1 + delta_chg_or),1)
+        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),1)
+        new_avg_sl = min(avg_sl * (1 + delta_chg_sl), 1)
 
         # Display results
         st.write("### Simulation Results")
-        st.metric("Weekly Demand", f"{int(weekly_demand)}")
-        st.metric("Daily Demand", f"{int(daily_demand)}")
-        st.metric("Adjusted Demand", f"{int(adjusted_demand)}")
-        st.metric("Average Q2 Time", f"{avg_q2_time:.2f}")
-        st.metric("Average Occupancy Rate", f"{avg_occ_rate * 100:.1f}%")
-        st.metric("Average Abandon Rate", f"{avg_abn_rate:.2f}%")
-        st.metric("Average Staffing", f"{int(avg_staffing_max_for_week)}")
-        st.metric("Adjusted Staffing", f"{int(adjusted_staffing)}")
-        st.metric("FTE Requirement", f"{int(weekly_demand/(2250 * filtered_data['Occ Assumption'].mean()))}")
+        # Create columns
+        cols = st.columns(3)
+
+        # First row
+        cols[0].metric("Weekly Demand", f"{int(weekly_demand)}")
+        cols[1].metric("Daily Demand", f"{int(daily_demand)}")
+        cols[2].metric("Adjusted Demand", f"{int(adjusted_demand)}")
+
+        # Second row
+        cols = st.columns(4)
+        cols[0].metric("Average Q2 Time", f"{avg_q2_time:.2f}")
+        cols[1].metric("Average Occupancy Rate", f"{avg_occ_rate * 100:.1f}%")
+        cols[2].metric("Average Abandon Rate", f"{avg_abn_rate:.2f}%")
+        cols[3].metric("Average Service Level", f"{avg_sl*100:.2f}%")
+
+        # Third row
+        cols = st.columns(3)
+        cols[0].metric("Average Staffing", f"{int(avg_staffing_max_for_week)}")
+        cols[1].metric("Adjusted Staffing", f"{int(adjusted_staffing)}")
+        cols[2].metric("FTE Requirement", f"{int(weekly_demand/(2250 * filtered_data['Occ Assumption'].mean()))}")         
+
+        # Display results
 
         st.markdown(
             f"<div style='padding:10px; background-color:{reliability_color}; color:white; border-radius:5px;'>"
             f"<strong>Reliability Indicator:</strong> {reliability_text}</div>",
             unsafe_allow_html=True
         )
-        st.metric("New Average Q2 Time", f"{new_avg_q2_time:.2f}")
-        st.metric("New Average Occupancy Rate", f"{new_avg_occ_rate*100:.1f}%")
-        st.metric("New Average Abandon Rate", f"{new_avg_abn_rate:.2f}%")
+
+        cols = st.columns(4)
+        cols[0].metric("New Avg Q2 Time", f"{new_avg_q2_time:.2f}")
+        cols[1].metric("New Avg Occupancy Rate", f"{new_avg_occ_rate*100:.1f}%")
         
+        # cols = st.columns(2)
+        cols[2].metric("New Avg Abandon Rate", f"{new_avg_abn_rate:.2f}%")
+        cols[3].metric("New Avg Service Level", f"{new_avg_sl*100:.2f}%")
         
         #Report section
         
         # Divider line
         st.markdown("---")
+        # Create a visual boundary using a container
+        with st.container():   
+            # Main title
+            st.title("Report Generation- Section")
+
+            st.subheader("Filters Only for Report Generation-->")
+            
+            simulation_mode = st.radio("Select Simulation Mode", ["Single Variable", "Double Variable"])
+
+            # Define change percentages
+            change_values = [1, 2, 5, 10, 15, 20, 25]
+
+            # Prepare results list
+            results = []
+            
+            if simulation_mode == "Single Variable":
+                variable_to_change = st.radio("Variable to Change", ["Demand", "Staffing"])
+                if variable_to_change == "Demand":
+                    inc_dec_demand = st.radio("Select Increase or Decrease (Demand)", ["Increase", "Decrease"])
+                    for dc in change_values:
+                        if inc_dec_demand == "Increase":
+                            new_demand = daily_demand * (1 + dc / 100)
+                        else:
+                            new_demand = daily_demand * (1 - dc / 100)
+                        
+                        new_staffing = avg_staffing_max_for_week
+                    
+                        filtered_OrigDemand_OrigStaff = data[
+                            (data['Demand'] >= ll_input1 * daily_demand) &
+                            (data['Demand'] <= ul_input1 * daily_demand) &
+                            (data['Staffing'] >= ll_input2 * staffing_calc_for_ul_ll) &
+                            (data['Staffing'] <= ul_input2 * staffing_calc_for_ul_ll)
+                        ]
+            
+            
+                        filtered_limits = data[
+                            (data['Demand'] >= ll_input1 * new_demand) &
+                            (data['Demand'] <= ul_input1 * new_demand) &
+                            (data['Staffing'] >= ll_input2 * staffing_calc_for_ul_ll) &
+                            (data['Staffing'] <= ul_input2 * staffing_calc_for_ul_ll)
+                        ]
         
-        # Main title
-        st.title("Report Generation- Section")
+                        # Get the current year
+                        current_year = datetime.now().year
 
-        # Sidebar inputs
-        st.sidebar.markdown("---")
-        st.sidebar.header("Simulation Settings- Report Generation Section")
-        simulation_mode = st.sidebar.radio("Select Simulation Mode", ["Single Variable", "Double Variable"])
+                        # Define weights
+                        weights = {
+                            current_year: 0.6,
+                            current_year - 1: 0.2,
+                            current_year - 2: 0.2
+                        }
 
-        # Define change percentages
-        change_values = [1, 2, 5, 10, 15, 20, 25]
+                        # Map weights to the DataFrame
+                        filtered_limits['Weight'] = filtered_limits['Year'].map(weights)
+                        filtered_OrigDemand_OrigStaff['Weight'] = filtered_OrigDemand_OrigStaff['Year'].map(weights)
 
-        # Prepare results list
-        results = []
 
-        if simulation_mode == "Single Variable":
-            variable_to_change = st.sidebar.radio("Variable to Change", ["Demand", "Staffing"])
-            if variable_to_change == "Demand":
-                inc_dec_demand = st.sidebar.radio("Select Increase or Decrease (Demand)", ["Increase", "Decrease"])
+                        weighted_q2_orig = (filtered_OrigDemand_OrigStaff['Q2'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_occr_orig = (filtered_OrigDemand_OrigStaff['Occupancy Rate'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_abn_orig = (filtered_OrigDemand_OrigStaff['ABN %'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_sl_orig = (filtered_OrigDemand_OrigStaff['Service Level'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+
+                        weighted_q2 = (filtered_limits['Q2'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_occr = (filtered_limits['Occupancy Rate'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_abn = (filtered_limits['ABN %'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_sl = (filtered_limits['Service Level'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+        
+                        delta_chg_q2 = (weighted_q2 - weighted_q2_orig)/weighted_q2_orig
+                        delta_chg_or = (weighted_occr - weighted_occr_orig)/weighted_occr_orig
+                        delta_chg_abn = (weighted_abn - weighted_abn_orig)/weighted_abn_orig
+                        delta_chg_sl = (weighted_sl - weighted_sl_orig)/weighted_sl_orig 
+                        
+                        new_avg_q2_time = avg_q2_time * (1 + delta_chg_q2)
+                        new_avg_occ_rate = min(avg_occ_rate * (1 + delta_chg_or),1)
+                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),1)
+                        new_avg_sl = min(avg_sl * (1 + delta_chg_sl), 1)
+                    
+                        results.append({
+                            "Scenario 1": f"Demand {inc_dec_demand} By {abs(dc)}%",
+                            "Scenario 2": "No Change",
+                            "Language": FileName,
+                            "USD/ GLOBAL": usd_global,
+                            "Level": level,
+                            "FTE Requirement":  f"{int(weekly_demand/(2250 * filtered_data['Occ Assumption'].mean()))}",                    
+                            "Demand Daily": f"{int(daily_demand)}",
+                            "New Demand (Daily)": round(new_demand),
+                            "Staffing": f"{int(avg_staffing_max_for_week)}",
+                            "Adjusted/New Staffing": round(new_staffing),
+                            "Average Q2 Time": f"{avg_q2_time:.2f}",
+                            "New Q2 Time": round(new_avg_q2_time, 2),
+                            "Average Occupancy Rate": f"{avg_occ_rate * 100:.1f}%",
+                            "New Occupancy Rate": f"{round(new_avg_occ_rate*100, 2)}%",
+                            "Average Abandon Rate": f"{avg_abn_rate:.2f}%",
+                            "New Abandon Rate": f"{round(new_avg_abn_rate, 2)}%",
+                            "Average Service Level": f"{avg_sl*100:.2f}%",
+                            "New Service Level": f"{round(new_avg_sl*100, 2)}%"                            
+
+                        })
+                else:
+                    inc_dec_staffing = st.radio("Select Increase or Decrease (Staffing) ", ["Increase", "Decrease"])
+                    for sc in change_values:
+                        if inc_dec_staffing == "Increase":
+                            new_staffing = avg_staffing_max_for_week * (1 + sc / 100)
+                            new_staffing1 = staffing_calc_for_ul_ll * (1 + sc / 100)  
+                        else:
+                            new_staffing = avg_staffing_max_for_week * (1 - sc / 100)
+                            new_staffing1 = staffing_calc_for_ul_ll * (1 - sc / 100)
+                        
+                        new_demand = daily_demand
+                    
+                        filtered_OrigDemand_OrigStaff = data[
+                            (data['Demand'] >= ll_input1 * daily_demand) &
+                            (data['Demand'] <= ul_input1 * daily_demand) &
+                            (data['Staffing'] >= ll_input2 * staffing_calc_for_ul_ll) &
+                            (data['Staffing'] <= ul_input2 * staffing_calc_for_ul_ll)
+                        ]
+            
+            
+                        filtered_limits = data[
+                            (data['Demand'] >= ll_input1 * new_demand) &
+                            (data['Demand'] <= ul_input1 * new_demand) &
+                            (data['Staffing'] >= ll_input2 * new_staffing1) &
+                            (data['Staffing'] <= ul_input2 * new_staffing1)
+                        ]
+        
+                        # Get the current year
+                        current_year = datetime.now().year
+
+                        # Define weights
+                        weights = {
+                            current_year: 0.6,
+                            current_year - 1: 0.2,
+                            current_year - 2: 0.2
+                        }
+
+                        # Map weights to the DataFrame
+                        filtered_limits['Weight'] = filtered_limits['Year'].map(weights)
+                        filtered_OrigDemand_OrigStaff['Weight'] = filtered_OrigDemand_OrigStaff['Year'].map(weights)
+
+
+                        weighted_q2_orig = (filtered_OrigDemand_OrigStaff['Q2'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_occr_orig = (filtered_OrigDemand_OrigStaff['Occupancy Rate'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_abn_orig = (filtered_OrigDemand_OrigStaff['ABN %'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_sl_orig = (filtered_OrigDemand_OrigStaff['Service Level'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+
+                        weighted_q2 = (filtered_limits['Q2'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_occr = (filtered_limits['Occupancy Rate'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_abn = (filtered_limits['ABN %'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_sl = (filtered_limits['Service Level'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+        
+                        delta_chg_q2 = (weighted_q2 - weighted_q2_orig)/weighted_q2_orig
+                        delta_chg_or = (weighted_occr - weighted_occr_orig)/weighted_occr_orig
+                        delta_chg_abn = (weighted_abn - weighted_abn_orig)/weighted_abn_orig
+                        delta_chg_sl = (weighted_sl - weighted_sl_orig)/weighted_sl_orig 
+                        
+                        new_avg_q2_time = avg_q2_time * (1 + delta_chg_q2)
+                        new_avg_occ_rate = min(avg_occ_rate * (1 + delta_chg_or),1)
+                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),1)
+                        new_avg_sl = min(avg_sl * (1 + delta_chg_sl), 1)
+
+                        results.append({
+                            "Scenario 1": "No Change",
+                            "Scenario 2": f"Staffing {inc_dec_staffing} By {abs(sc)}%",
+                            "Language": FileName,
+                            "USD/ GLOBAL": usd_global,
+                            "Level": level,
+                            "FTE Requirement":  f"{int(weekly_demand/(2250 * filtered_data['Occ Assumption'].mean()))}",                    
+                            "Demand Daily": f"{int(daily_demand)}",
+                            "New Demand (Daily)": round(new_demand),
+                            "Staffing": f"{int(avg_staffing_max_for_week)}",
+                            "Adjusted/New Staffing": round(new_staffing),
+                            "Average Q2 Time": f"{avg_q2_time:.2f}",
+                            "New Q2 Time": round(new_avg_q2_time, 2),
+                            "Average Occupancy Rate": f"{avg_occ_rate * 100:.1f}%",
+                            "New Occupancy Rate": f"{round(new_avg_occ_rate*100, 2)}%",
+                            "Average Abandon Rate": f"{avg_abn_rate:.2f}%",
+                            "New Abandon Rate": f"{round(new_avg_abn_rate, 2)}%",
+                            "Average Service Level": f"{avg_sl*100:.2f}%",
+                            "New Service Level": f"{round(new_avg_sl*100, 2)}%"                              
+
+                        })
+
+            else:  # Double Variable
+                cols = st.columns(2)
+                inc_dec_demand = cols[0].radio("Select Increase or Decrease [Demand]", ["Increase", "Decrease"])
+                inc_dec_staffing = cols[1].radio("Select Increase or Decrease [Staffing]", ["Increase", "Decrease"])
+                
                 for dc in change_values:
-                    if inc_dec_demand == "Increase":
-                        new_demand = daily_demand * (1 + dc / 100)
-                    else:
-                        new_demand = daily_demand * (1 - dc / 100)
+                    for sc in change_values:
+                        if inc_dec_demand == "Increase":
+                            new_demand = daily_demand * (1 + dc / 100)
+                        else:
+                            new_demand = daily_demand * (1 - dc / 100)
                         
-                    new_staffing = avg_staffing_max_for_week
+                        if inc_dec_staffing == "Increase":
+                            new_staffing = avg_staffing_max_for_week * (1 + sc / 100)
+                            new_staffing1 = staffing_calc_for_ul_ll * (1 + sc / 100)  
+                        else:
+                            new_staffing = avg_staffing_max_for_week * (1 - sc / 100)
+                            new_staffing1 = staffing_calc_for_ul_ll * (1 - sc / 100)             
                     
-                    filtered_OrigDemand_OrigStaff = data[
-                        (data['Demand'] >= ll_input1 * daily_demand) &
-                        (data['Demand'] <= ul_input1 * daily_demand) &
-                        (data['Staffing'] >= ll_input2 * staffing_calc_for_ul_ll) &
-                        (data['Staffing'] <= ul_input2 * staffing_calc_for_ul_ll)
-                    ]
+                        filtered_OrigDemand_OrigStaff = data[
+                            (data['Demand'] >= ll_input1 * daily_demand) &
+                            (data['Demand'] <= ul_input1 * daily_demand) &
+                            (data['Staffing'] >= ll_input2 * staffing_calc_for_ul_ll) &
+                            (data['Staffing'] <= ul_input2 * staffing_calc_for_ul_ll)
+                        ]
             
             
-                    filtered_limits = data[
-                        (data['Demand'] >= ll_input1 * new_demand) &
-                        (data['Demand'] <= ul_input1 * new_demand) &
-                        (data['Staffing'] >= ll_input2 * staffing_calc_for_ul_ll) &
-                        (data['Staffing'] <= ul_input2 * staffing_calc_for_ul_ll)
-                    ]
+                        filtered_limits = data[
+                            (data['Demand'] >= ll_input1 * new_demand) &
+                            (data['Demand'] <= ul_input1 * new_demand) &
+                            (data['Staffing'] >= ll_input2 * new_staffing1) &
+                            (data['Staffing'] <= ul_input2 * new_staffing1)
+                        ]
         
-                    delta_chg_q2 = (filtered_limits['Q2'].mean() - filtered_OrigDemand_OrigStaff['Q2'].mean())/filtered_OrigDemand_OrigStaff['Q2'].mean()
-                    delta_chg_or = (filtered_limits['Occupancy Rate'].mean()-filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean())/filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean()
-                    delta_chg_abn = (filtered_limits['ABN %'].mean()-filtered_OrigDemand_OrigStaff['ABN %'].mean())/filtered_OrigDemand_OrigStaff['ABN %'].mean()
-                    
-                    new_q2 = avg_q2_time * (1 + delta_chg_q2)
-                    new_occ = avg_occ_rate * (1 + delta_chg_or)
-                    new_abn = avg_abn_rate * (1 + delta_chg_abn) 
-                    
-                    results.append({
-                        "Scenario 1": f"Demand {inc_dec_demand} By {abs(dc)}%",
-                        "Scenario 2": "No Change",
-                        "Language": FileName,
-                        "USD/ GLOBAL": usd_global,
-                        "Level": level,
-                        "FTE Requirement":  f"{int(weekly_demand/(2250 * filtered_data['Occ Assumption'].mean()))}",                    
-                        "Demand Daily": f"{int(daily_demand)}",
-                        "New Demand (Daily)": round(new_demand),
-                        "Staffing": f"{int(avg_staffing_max_for_week)}",
-                        "Adjusted/New Staffing": round(new_staffing),
-                        "Average Q2 Time": f"{avg_q2_time:.2f}",
-                        "New Q2 Time": round(new_q2, 2),
-                        "Average Occupancy Rate": f"{avg_occ_rate * 100:.1f}%",
-                        "New Occupancy Rate": f"{round(new_occ*100, 2)}%",
-                        "Average Abandon Rate": f"{avg_abn_rate:.2f}%",
-                        "New Abandon Rate": f"{round(new_abn, 2)}%"
+                        # Get the current year
+                        current_year = datetime.now().year
 
-                    })
-            else:
-                inc_dec_staffing = st.sidebar.radio("Select Increase or Decrease (Staffing) ", ["Increase", "Decrease"])
-                for sc in change_values:
-                    if inc_dec_staffing == "Increase":
-                        new_staffing = avg_staffing_max_for_week * (1 + sc / 100)
-                        new_staffing1 = staffing_calc_for_ul_ll * (1 + sc / 100)  
-                    else:
-                        new_staffing = avg_staffing_max_for_week * (1 - sc / 100)
-                        new_staffing1 = staffing_calc_for_ul_ll * (1 - sc / 100)
+                        # Define weights
+                        weights = {
+                            current_year: 0.6,
+                            current_year - 1: 0.2,
+                            current_year - 2: 0.2
+                        }
+
+                        # Map weights to the DataFrame
+                        filtered_limits['Weight'] = filtered_limits['Year'].map(weights)
+                        filtered_OrigDemand_OrigStaff['Weight'] = filtered_OrigDemand_OrigStaff['Year'].map(weights)
+
+
+                        weighted_q2_orig = (filtered_OrigDemand_OrigStaff['Q2'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_occr_orig = (filtered_OrigDemand_OrigStaff['Occupancy Rate'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_abn_orig = (filtered_OrigDemand_OrigStaff['ABN %'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+                        weighted_sl_orig = (filtered_OrigDemand_OrigStaff['Service Level'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
+
+                        weighted_q2 = (filtered_limits['Q2'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_occr = (filtered_limits['Occupancy Rate'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_abn = (filtered_limits['ABN %'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+                        weighted_sl = (filtered_limits['Service Level'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+        
+                        delta_chg_q2 = (weighted_q2 - weighted_q2_orig)/weighted_q2_orig
+                        delta_chg_or = (weighted_occr - weighted_occr_orig)/weighted_occr_orig
+                        delta_chg_abn = (weighted_abn - weighted_abn_orig)/weighted_abn_orig
+                        delta_chg_sl = (weighted_sl - weighted_sl_orig)/weighted_sl_orig 
                         
-                    new_demand = daily_demand
+                        new_avg_q2_time = avg_q2_time * (1 + delta_chg_q2)
+                        new_avg_occ_rate = min(avg_occ_rate * (1 + delta_chg_or),1)
+                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),1)
+                        new_avg_sl = min(avg_sl * (1 + delta_chg_sl), 1)
                     
-                    filtered_OrigDemand_OrigStaff = data[
-                        (data['Demand'] >= ll_input1 * daily_demand) &
-                        (data['Demand'] <= ul_input1 * daily_demand) &
-                        (data['Staffing'] >= ll_input2 * staffing_calc_for_ul_ll) &
-                        (data['Staffing'] <= ul_input2 * staffing_calc_for_ul_ll)
-                    ]
-            
-            
-                    filtered_limits = data[
-                        (data['Demand'] >= ll_input1 * new_demand) &
-                        (data['Demand'] <= ul_input1 * new_demand) &
-                        (data['Staffing'] >= ll_input2 * new_staffing1) &
-                        (data['Staffing'] <= ul_input2 * new_staffing1)
-                    ]
-        
-                    delta_chg_q2 = (filtered_limits['Q2'].mean() - filtered_OrigDemand_OrigStaff['Q2'].mean())/filtered_OrigDemand_OrigStaff['Q2'].mean()
-                    delta_chg_or = (filtered_limits['Occupancy Rate'].mean()-filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean())/filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean()
-                    delta_chg_abn = (filtered_limits['ABN %'].mean()-filtered_OrigDemand_OrigStaff['ABN %'].mean())/filtered_OrigDemand_OrigStaff['ABN %'].mean()
-                    
-                    new_q2 = avg_q2_time * (1 + delta_chg_q2)
-                    new_occ = avg_occ_rate * (1 + delta_chg_or)
-                    new_abn = avg_abn_rate * (1 + delta_chg_abn) 
-                    results.append({
-                        "Scenario 1": "No Change",
-                        "Scenario 2": f"Staffing {inc_dec_staffing} By {abs(sc)}%",
-                        "Language": FileName,
-                        "USD/ GLOBAL": usd_global,
-                        "Level": level,
-                        "FTE Requirement":  f"{int(weekly_demand/(2250 * filtered_data['Occ Assumption'].mean()))}",                    
-                        "Demand Daily": f"{int(daily_demand)}",
-                        "New Demand (Daily)": round(new_demand),
-                        "Staffing": f"{int(avg_staffing_max_for_week)}",
-                        "Adjusted/New Staffing": round(new_staffing),
-                        "Average Q2 Time": f"{avg_q2_time:.2f}",
-                        "New Q2 Time": round(new_q2, 2),
-                        "Average Occupancy Rate": f"{avg_occ_rate * 100:.1f}%",
-                        "New Occupancy Rate": f"{round(new_occ*100, 2)}%",
-                        "Average Abandon Rate": f"{avg_abn_rate:.2f}%",
-                        "New Abandon Rate": f"{round(new_abn, 2)}%"
-                    })
+                        results.append({
+                            "Scenario 1": f"Demand {inc_dec_demand} By {abs(dc)}%",
+                            "Scenario 2": f"Staffing {inc_dec_staffing} By {abs(sc)}%",
+                            "Language": FileName,
+                            "USD/ GLOBAL": usd_global,
+                            "Level": level,
+                            "FTE Requirement":  f"{int(weekly_demand/(2250 * filtered_data['Occ Assumption'].mean()))}",                    
+                            "Demand Daily": f"{int(daily_demand)}",
+                            "New Demand (Daily)": round(new_demand),
+                            "Staffing": f"{int(avg_staffing_max_for_week)}",
+                            "Adjusted/New Staffing": round(new_staffing),
+                            "Average Q2 Time": f"{avg_q2_time:.2f}",
+                            "New Q2 Time": round(new_avg_q2_time, 2),
+                            "Average Occupancy Rate": f"{avg_occ_rate * 100:.1f}%",
+                            "New Occupancy Rate": f"{round(new_avg_occ_rate*100, 2)}%",
+                            "Average Abandon Rate": f"{avg_abn_rate:.2f}%",
+                            "New Abandon Rate": f"{round(new_avg_abn_rate, 2)}%",
+                            "Average Service Level": f"{avg_sl*100:.2f}%",
+                            "New Service Level": f"{round(new_avg_sl*100, 2)}%"                            
 
-        else:  # Double Variable
-            inc_dec_staffing = st.sidebar.radio("Select Increase or Decrease [Staffing]", ["Increase", "Decrease"])
-            inc_dec_demand = st.sidebar.radio("Select Increase or Decrease [Demand]", ["Increase", "Decrease"])
-            for dc in change_values:
-                for sc in change_values:
-                    if inc_dec_demand == "Increase":
-                        new_demand = daily_demand * (1 + dc / 100)
-                    else:
-                        new_demand = daily_demand * (1 - dc / 100)
-                        
-                    if inc_dec_staffing == "Increase":
-                        new_staffing = avg_staffing_max_for_week * (1 + sc / 100)
-                        new_staffing1 = staffing_calc_for_ul_ll * (1 + sc / 100)  
-                    else:
-                        new_staffing = avg_staffing_max_for_week * (1 - sc / 100)
-                        new_staffing1 = staffing_calc_for_ul_ll * (1 - sc / 100)             
-                    
-                    filtered_OrigDemand_OrigStaff = data[
-                        (data['Demand'] >= ll_input1 * daily_demand) &
-                        (data['Demand'] <= ul_input1 * daily_demand) &
-                        (data['Staffing'] >= ll_input2 * staffing_calc_for_ul_ll) &
-                        (data['Staffing'] <= ul_input2 * staffing_calc_for_ul_ll)
-                    ]
-            
-            
-                    filtered_limits = data[
-                        (data['Demand'] >= ll_input1 * new_demand) &
-                        (data['Demand'] <= ul_input1 * new_demand) &
-                        (data['Staffing'] >= ll_input2 * new_staffing1) &
-                        (data['Staffing'] <= ul_input2 * new_staffing1)
-                    ]
-        
-                    delta_chg_q2 = (filtered_limits['Q2'].mean() - filtered_OrigDemand_OrigStaff['Q2'].mean())/filtered_OrigDemand_OrigStaff['Q2'].mean()
-                    delta_chg_or = (filtered_limits['Occupancy Rate'].mean()-filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean())/filtered_OrigDemand_OrigStaff['Occupancy Rate'].mean()
-                    delta_chg_abn = (filtered_limits['ABN %'].mean()-filtered_OrigDemand_OrigStaff['ABN %'].mean())/filtered_OrigDemand_OrigStaff['ABN %'].mean()
-                    
-                    new_q2 = avg_q2_time * (1 + delta_chg_q2)
-                    new_occ = avg_occ_rate * (1 + delta_chg_or)
-                    new_abn = avg_abn_rate * (1 + delta_chg_abn) 
+                        })
 
-                    results.append({
-                        "Scenario 1": f"Demand {inc_dec_demand} By {abs(dc)}%",
-                        "Scenario 2": f"Staffing {inc_dec_staffing} By {abs(sc)}%",
-                        "Language": FileName,
-                        "USD/ GLOBAL": usd_global,
-                        "Level": level,
-                        "FTE Requirement":  f"{int(weekly_demand/(2250 * filtered_data['Occ Assumption'].mean()))}",                    
-                        "Demand Daily": f"{int(daily_demand)}",
-                        "New Demand (Daily)": round(new_demand),
-                        "Staffing": f"{int(avg_staffing_max_for_week)}",
-                        "Adjusted/New Staffing": round(new_staffing),
-                        "Average Q2 Time": f"{avg_q2_time:.2f}",
-                        "New Q2 Time": round(new_q2, 2),
-                        "Average Occupancy Rate": f"{avg_occ_rate * 100:.1f}%",
-                        "New Occupancy Rate": f"{round(new_occ*100, 2)}%",
-                        "Average Abandon Rate": f"{avg_abn_rate:.2f}%",
-                        "New Abandon Rate": f"{round(new_abn, 2)}%"
-                    })
+            # Display results
+            result_df = pd.DataFrame(results)
+            st.write("### Simulation Results")
+            st.dataframe(result_df)
 
-        # Display results
-        result_df = pd.DataFrame(results)
-        st.write("### Simulation Results")
-        st.dataframe(result_df)
-
-        # Download option
-        csv = result_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download Report as CSV",
-            data=csv,
-            file_name="scenario_report.csv",
-            mime="text/csv"
-        )
+            # Download option
+            csv = result_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Download Report as CSV",
+                data=csv,
+                file_name="scenario_report.csv",
+                mime="text/csv"
+            )
 
 
     else:

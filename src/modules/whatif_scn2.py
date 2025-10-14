@@ -72,7 +72,7 @@ def impact_of_occ_assumption_change(model, occ,occ_assmp,demand,staff):
     occ_changes = [-10, -5, -2, -1, 0, 1, 2, 5, 10]
     predictions = []
     for change in occ_changes:
-        occ_scenario = occ_assmp + (change / 100)
+        occ_scenario = min(max(occ_assmp + (change / 100), 0), 1)
         fte_pred = model.predict(pd.DataFrame({
             "Occ Assumption": [occ_scenario],
             "Staffing": [staff], "Demand": [demand], "Occupancy Rate": [occ],
@@ -93,25 +93,26 @@ def scn2():
         df_date = df[(df['USD'] == 'Combined') & (df['Level'] == 'Combined')].copy()
         df_date['startDate'] = pd.to_datetime(df_date['startDate per day'])
         max_date = df_date['startDate'].max()
-        formatted_max_date = max_date.strftime('%Y-%m-%d')
 
         # Find the Sunday of that week
         sunday_date = max_date - timedelta(days=max_date.weekday() + 1) if max_date.weekday() != 6 else max_date
         formatted_sunday = sunday_date.strftime('%Y-%m-%d')
-
-        date_str = st.text_input("Enter the date to search (YYYY-MM-DD):", value=formatted_sunday)
+        
+        cols = st.columns(3)
+        date_str = cols[0].text_input("Enter Date (YYYY-MM-DD):", value=formatted_sunday)
         search_date = datetime.strptime(date_str, "%Y-%m-%d")
-        st.write(f"Selected Date: {search_date.date()}")  
 
         usd_options = df['USD'].unique()
         level_options = df['Level'].unique()
         default_usd_global_index = list(usd_options).index("Combined") if "Combined" in usd_options else 0
         default_level_index = list(level_options).index("Combined") if "Combined" in level_options else 0
+        
+        language = cols[1].selectbox("Select Language", df['Language'].unique())
+        req_media = cols[2].selectbox("Select Req Media", df['Req Media'].unique())
 
-        language = st.selectbox("Select Language", df['Language'].unique())
-        req_media = st.selectbox("Select Req Media", df['Req Media'].unique())
-        usd = st.selectbox("Select USD", df['USD'].unique(), index=default_usd_global_index)
-        level = st.selectbox("Select Level", df['Level'].unique(), index=default_level_index)
+        cols = st.columns(2)
+        usd = cols[0].selectbox("Select USD", df['USD'].unique(), index=default_usd_global_index)
+        level = cols[1].selectbox("Select Level", df['Level'].unique(), index=default_level_index)
 
         filtered_df = df[(df['Language'] == language) &
                          (df['Req Media'] == req_media) &
@@ -163,11 +164,13 @@ def scn2():
 
             # Create a form
             with st.form(key="input_form"):
-
-                occ_input_for_form = st.text_input("Set Occupancy Rate (%)", value=max(round(float(avg_occ),2), 0.0))
-                occ_assmp_input_for_form = st.text_input("Set Occ Assumption (%)", value=max(round(float(avg_occ_assmp),2), 0.0))
-                demand_input_for_form = st.text_input("Enter Demand", value = round(weekly_df['Demand'].sum(),2))
-                staffing_input_for_form = st.text_input("Enter Staffing", value = round(weekly_df['Staffing'].mean(),2))
+                cols = st.columns(2)
+                occ_input_for_form = cols[0].text_input("Set Occupancy Rate (%)", value=max(round(float(avg_occ),2), 0.0))
+                occ_assmp_input_for_form = cols[1].text_input("Set Occ Assumption (%)", value=max(round(float(avg_occ_assmp),2), 0.0))
+                
+                cols = st.columns(2)
+                demand_input_for_form = cols[0].text_input("Enter Demand", value = round(weekly_df['Demand'].sum(),2))
+                staffing_input_for_form = cols[1].text_input("Enter Staffing", value = round(weekly_df['Staffing'].mean(),2))
                 submit_button = st.form_submit_button(label="Generate Results")
 
                 if submit_button:
