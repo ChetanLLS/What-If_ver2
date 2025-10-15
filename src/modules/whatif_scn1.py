@@ -122,13 +122,13 @@ def scn1():
             st.header("Prediction Results")
             
             sl_prediction = analyze_scenarios(model, q2_val, abn_val)
-            st.write(f"Predicted Service Level: **{sl_prediction:.4f}**")
+            st.write(f"Predicted Service Level: **{sl_prediction*100:.2f}%**")
         
             st.header("Impact of Q2 Changes on Service Level")
             sl_impact = sl_impact_of_q2_increase(df_filtered, model, q2_val, abn_val)
             
             for change, sl_pred in sl_impact:
-                st.write(f"Q2 Value {q2_val + change}: Predicted SL = **{sl_pred:.4f}**")
+                st.write(f"Q2 Value {q2_val + change}: Predicted SL = **{sl_pred*100:.2f}%**")
         
         else:
             st.warning("No data available for the selected filters. Try different values.")
