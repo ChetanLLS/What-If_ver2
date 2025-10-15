@@ -87,10 +87,13 @@ def scn1():
         level_options = df['Level'].unique()        
         default_usd_global_index = list(usd_options).index("Combined") if "Combined" in usd_options else 0
         default_level_index = list(level_options).index("Combined") if "Combined" in usd_options else 0
-        language = st.selectbox("Select Language", df['Language'].unique())
-        req_media = st.selectbox("Select Req Media", df['Req Media'].unique())  
-        usd = st.selectbox("Select USD", df['USD'].unique(), index=default_usd_global_index)  # Fixed column name
-        level = st.selectbox("Select Level", df['Level'].unique(), index=default_level_index)
+        cols = st.columns(2)
+        language = cols[0].selectbox("Select Language", df['Language'].unique())
+        req_media = cols[1].selectbox("Select Req Media", df['Req Media'].unique())
+
+        cols = st.columns(2)  
+        usd = cols[0].selectbox("Select USD", df['USD'].unique(), index=default_usd_global_index)  # Fixed column name
+        level = cols[1].selectbox("Select Level", df['Level'].unique(), index=default_level_index)
 
         # Apply filters
         df_filtered = df[(df['Language'] == language) & 
@@ -111,9 +114,10 @@ def scn1():
             # st.latex(f"Service\\ Level = {beta_0:.4f} + ({beta_1:.4f} \\times Q2) + ({beta_2:.4f} \\times ABN\\%)")
 
             # User inputs for predictions
-            q2_val = st.number_input("Set Q2 Time:", min_value=0, max_value=100, value=20, step=1)
+            cols = st.columns(2)
+            q2_val = cols[0].number_input("Set Q2 Time:", min_value=0, max_value=100, value=20, step=1)
             st.write("Abandonment rate is just a parameter used in the equation- impct is very minimal")
-            abn_val = st.number_input("Set Abandon Rate (%)", min_value=0, max_value=10, value=2, step=1)
+            abn_val = cols[1].number_input("Set Abandon Rate (%)", min_value=0, max_value=10, value=2, step=1)
             
             st.header("Prediction Results")
             
