@@ -74,12 +74,20 @@ def run_fte_analysis_4():
         ll_input2 = 0.9
         ul_input2 = 1.1
 
+        
+        # Extract year from the date column
+        data['Year'] = pd.to_datetime(data['startDate per day']).dt.year
+
+
         # Filter data
-        filtered_data = data[
-            (data['startDate per day'] >= pd.to_datetime(start_date)) &
-            (data['startDate per day'] <= pd.to_datetime(end_date)) &
+        data = data[
             (data['USD'] == usd_global) &
             (data['Level'] == level)
+        ]
+
+        filtered_data = data[
+            (data['startDate per day'] >= pd.to_datetime(start_date)) &
+            (data['startDate per day'] <= pd.to_datetime(end_date))
         ]
 
         # Calculations
@@ -133,9 +141,6 @@ def run_fte_analysis_4():
                 st.success(f"Adjusted Demand: {adjusted_demand:.2f}")
         except Exception as e:
             st.error(f"An error occurred while calculating adjusted demand")
-        
-        # Extract year from the date column
-        data['Year'] = pd.to_datetime(data['startDate per day']).dt.year
     
 
         filtered_OrigDemand_OrigStaff = data[
@@ -173,10 +178,12 @@ def run_fte_analysis_4():
         weighted_abn_orig = (filtered_OrigDemand_OrigStaff['ABN %'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
         weighted_sl_orig = (filtered_OrigDemand_OrigStaff['Service Level'] * filtered_OrigDemand_OrigStaff['Weight']).sum() / filtered_OrigDemand_OrigStaff['Weight'].sum()
 
+
         weighted_q2 = (filtered_limits['Q2'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
         weighted_occr = (filtered_limits['Occupancy Rate'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
         weighted_abn = (filtered_limits['ABN %'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
         weighted_sl = (filtered_limits['Service Level'] * filtered_limits['Weight']).sum() / filtered_limits['Weight'].sum()
+
         
         delta_chg_q2 = (weighted_q2 - weighted_q2_orig)/weighted_q2_orig
         delta_chg_or = (weighted_occr - weighted_occr_orig)/weighted_occr_orig
