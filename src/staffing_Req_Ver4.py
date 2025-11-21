@@ -326,7 +326,7 @@ def run_fte_analysis_4():
                         
                         new_avg_q2_time = avg_q2_time * (1 + delta_chg_q2)
                         new_avg_occ_rate = min(avg_occ_rate * (1 + delta_chg_or),1)
-                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),1)
+                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),100)
                         new_avg_sl = min(avg_sl * (1 + delta_chg_sl), 1)
                     
                         results.append({
@@ -409,7 +409,7 @@ def run_fte_analysis_4():
                         
                         new_avg_q2_time = avg_q2_time * (1 + delta_chg_q2)
                         new_avg_occ_rate = min(avg_occ_rate * (1 + delta_chg_or),1)
-                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),1)
+                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),100)
                         new_avg_sl = min(avg_sl * (1 + delta_chg_sl), 1)
 
                         results.append({
@@ -500,7 +500,7 @@ def run_fte_analysis_4():
                         
                         new_avg_q2_time = avg_q2_time * (1 + delta_chg_q2)
                         new_avg_occ_rate = min(avg_occ_rate * (1 + delta_chg_or),1)
-                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),1)
+                        new_avg_abn_rate = min(avg_abn_rate * (1 + delta_chg_abn),100)
                         new_avg_sl = min(avg_sl * (1 + delta_chg_sl), 1)
                     
                         results.append({
