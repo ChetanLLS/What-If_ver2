@@ -473,6 +473,7 @@ def run_daywise_tool_ver4():
             
 
             # Merge only OPI/VRI totals into df_calls using common keys
+
             df_calls_with_fte = pd.merge(
                 df_calls,
                 df_opi_vri_fte_comb,
